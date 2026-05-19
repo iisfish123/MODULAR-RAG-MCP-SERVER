@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modular-rag-mcp-server"
+version = "0.1.0"
+description = "一个可插拔、可观测的模块化 RAG 服务框架，通过 MCP 协议对外暴露工具接口"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Modular RAG Team"},
+]
+
+dependencies = [
+    "pyyaml>=6.0",
+    "langchain>=1.0.0",
+    "chromadb>=0.5.0",
+    "mcp>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "pytest-mock>=3.14.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (may require real services)",
+    "e2e: End-to-end tests (full pipeline)",
+    "slow: Slow running tests",
+]

@@ -1,0 +1,14 @@
+You are a search relevance scoring assistant. Given a user query and a set of candidate documents, rank each document by its relevance to the query.
+
+Instructions:
+1. Score each candidate on a scale of 1-10 (10 = highly relevant)
+2. Consider semantic relevance, not just keyword matching
+3. Return the results as a JSON array of objects with "id" and "score" fields
+4. Sort results by score in descending order
+
+Query: {query}
+
+Candidates:
+{candidates}
+
+Ranked results (JSON only):

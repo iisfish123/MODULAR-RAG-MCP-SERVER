@@ -1,0 +1,79 @@
+# Modular RAG MCP Server 主配置文件
+# 详见 DEV_SPEC.md 中的配置说明
+
+llm:
+  provider: openai
+  openai:
+    model: gpt-4o
+    api_key_env: OPENAI_API_KEY
+  azure:
+    endpoint: ""
+    api_key_env: AZURE_OPENAI_API_KEY
+    api_version: "2024-02-15-preview"
+    deployment_name: ""
+  ollama:
+    base_url: http://localhost:11434
+    model: deepseek-r1:latest
+  deepseek:
+    model: deepseek-chat
+    api_key_env: DEEPSEEK_API_KEY
+
+embedding:
+  provider: openai
+  openai:
+    model: text-embedding-3-small
+    api_key_env: OPENAI_API_KEY
+  azure:
+    endpoint: ""
+    api_key_env: AZURE_OPENAI_API_KEY
+    api_version: "2024-02-15-preview"
+    deployment_name: ""
+  ollama:
+    base_url: http://localhost:11434
+    model: mxbai-embed-large:latest
+
+vector_store:
+  provider: chroma
+  chroma:
+    persist_directory: data/db/chroma
+
+retrieval:
+  dense:
+    top_k: 20
+  sparse:
+    top_k: 20
+  fusion:
+    k: 60
+  final_top_k: 10
+
+rerank:
+  backend: none
+  llm:
+    prompt_path: config/prompts/rerank.txt
+  cross_encoder:
+    model: cross-encoder/ms-marco-MiniLM-L-6-v2
+    max_length: 512
+
+ingestion:
+  chunk_size: 512
+  chunk_overlap: 64
+  batch_size: 10
+  chunk_refiner:
+    use_llm: false
+  metadata_enricher:
+    use_llm: false
+
+evaluation:
+  backends:
+    - custom
+  ragas:
+    metrics:
+      - faithfulness
+      - answer_relevancy
+      - context_precision
+
+observability:
+  log_level: INFO
+  trace_enabled: true
+  traces_path: logs/traces.jsonl
+  app_log_path: logs/app.log
