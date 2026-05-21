@@ -2,7 +2,7 @@
 # 详见 DEV_SPEC.md 中的配置说明
 
 llm:
-  provider: openai
+  provider: ollama
   openai:
     model: gpt-4o
     api_key_env: OPENAI_API_KEY
@@ -19,7 +19,7 @@ llm:
     api_key_env: DEEPSEEK_API_KEY
 
 embedding:
-  provider: openai
+  provider: ollama
   openai:
     model: text-embedding-3-small
     api_key_env: OPENAI_API_KEY
