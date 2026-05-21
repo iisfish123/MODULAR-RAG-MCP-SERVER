@@ -8,7 +8,7 @@ Search Engine, complementing the DenseRetriever's semantic search.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from src.core.types import RetrievalResult
 
@@ -57,12 +57,12 @@ class SparseRetriever:
         ... )
         >>> results = retriever.retrieve(["RAG", "retrieval"], top_k=5)
     """
-    
+
     def __init__(
         self,
-        settings: Optional[Settings] = None,
-        bm25_indexer: Optional[BM25Indexer] = None,
-        vector_store: Optional[BaseVectorStore] = None,
+        settings: Settings | None = None,
+        bm25_indexer: BM25Indexer | None = None,
+        vector_store: BaseVectorStore | None = None,
         default_top_k: int = 10,
         default_collection: str = "default",
     ) -> None:
@@ -85,7 +85,7 @@ class SparseRetriever:
         self.bm25_indexer = bm25_indexer
         self.vector_store = vector_store
         self.default_collection = default_collection
-        
+
         # Extract default_top_k from settings if available
         self.default_top_k = default_top_k
         if settings is not None:
@@ -94,19 +94,19 @@ class SparseRetriever:
                 self.default_top_k = getattr(
                     retrieval_config, 'sparse_top_k', default_top_k
                 )
-        
+
         logger.info(
             f"SparseRetriever initialized with default_top_k={self.default_top_k}, "
             f"default_collection='{self.default_collection}'"
         )
-    
+
     def retrieve(
         self,
-        keywords: List[str],
-        top_k: Optional[int] = None,
-        collection: Optional[str] = None,
-        trace: Optional[Any] = None,
-    ) -> List[RetrievalResult]:
+        keywords: list[str],
+        top_k: int | None = None,
+        collection: str | None = None,
+        trace: Any | None = None,
+    ) -> list[RetrievalResult]:
         """Retrieve chunks matching the given keywords using BM25.
         
         Args:
@@ -132,16 +132,16 @@ class SparseRetriever:
         # Validate inputs
         self._validate_keywords(keywords)
         self._validate_dependencies()
-        
+
         # Use defaults if not specified
         effective_top_k = top_k if top_k is not None else self.default_top_k
         effective_collection = collection if collection is not None else self.default_collection
-        
+
         logger.debug(
             f"Retrieving for keywords={keywords[:5]}{'...' if len(keywords) > 5 else ''}, "
             f"top_k={effective_top_k}, collection='{effective_collection}'"
         )
-        
+
         # Step 1: Ensure index is loaded
         if not self._ensure_index_loaded(effective_collection):
             logger.warning(
@@ -149,7 +149,7 @@ class SparseRetriever:
                 "Returning empty results."
             )
             return []
-        
+
         # Step 2: Query BM25 index
         try:
             bm25_results = self.bm25_indexer.query(
@@ -162,12 +162,12 @@ class SparseRetriever:
                 f"Failed to query BM25 index: {e}. "
                 "Check index availability and query terms."
             ) from e
-        
+
         # Early return if no matches
         if not bm25_results:
             logger.debug("BM25 query returned no results")
             return []
-        
+
         # Step 3: Fetch text and metadata from vector store
         chunk_ids = [r["chunk_id"] for r in bm25_results]
         try:
@@ -177,14 +177,14 @@ class SparseRetriever:
                 f"Failed to fetch records from vector store: {e}. "
                 "Check vector store configuration and data availability."
             ) from e
-        
+
         # Step 4: Merge BM25 scores with text/metadata
         results = self._merge_results(bm25_results, records)
-        
+
         logger.debug(f"Retrieved {len(results)} results for keywords")
         return results
-    
-    def _validate_keywords(self, keywords: List[str]) -> None:
+
+    def _validate_keywords(self, keywords: list[str]) -> None:
         """Validate the keywords list.
         
         Args:
@@ -201,7 +201,7 @@ class SparseRetriever:
             raise ValueError("Keywords list cannot be empty")
         # Filter out empty strings but allow the call to proceed
         # (empty strings will simply not match anything)
-    
+
     def _validate_dependencies(self) -> None:
         """Validate that required dependencies are configured.
         
@@ -218,7 +218,7 @@ class SparseRetriever:
                 "SparseRetriever requires a vector_store. "
                 "Provide one during initialization or via setter."
             )
-    
+
     def _ensure_index_loaded(self, collection: str) -> bool:
         """Ensure the BM25 index is loaded for the given collection.
         
@@ -238,12 +238,12 @@ class SparseRetriever:
         except Exception as e:
             logger.warning(f"Failed to load BM25 index for collection '{collection}': {e}")
             return False
-    
+
     def _merge_results(
         self,
-        bm25_results: List[Dict[str, Any]],
-        records: List[Dict[str, Any]],
-    ) -> List[RetrievalResult]:
+        bm25_results: list[dict[str, Any]],
+        records: list[dict[str, Any]],
+    ) -> list[RetrievalResult]:
         """Merge BM25 scores with text and metadata from vector store.
         
         Args:
@@ -254,11 +254,11 @@ class SparseRetriever:
             List of RetrievalResult objects with complete information.
         """
         results = []
-        
+
         for bm25_result, record in zip(bm25_results, records):
             chunk_id = bm25_result["chunk_id"]
             score = bm25_result["score"]
-            
+
             # Handle case where record was not found
             if not record:
                 logger.warning(
@@ -266,11 +266,11 @@ class SparseRetriever:
                     "Skipping this result."
                 )
                 continue
-            
+
             # Validate record has expected fields
             text = record.get('text', '')
             metadata = record.get('metadata', {})
-            
+
             try:
                 result = RetrievalResult(
                     chunk_id=chunk_id,
@@ -285,14 +285,14 @@ class SparseRetriever:
                     "Skipping this result."
                 )
                 continue
-        
+
         return results
 
 
 def create_sparse_retriever(
     settings: Settings,
-    bm25_indexer: Optional[BM25Indexer] = None,
-    vector_store: Optional[BaseVectorStore] = None,
+    bm25_indexer: BM25Indexer | None = None,
+    vector_store: BaseVectorStore | None = None,
     index_dir: str = "data/db/bm25",
 ) -> SparseRetriever:
     """Factory function to create a SparseRetriever with optional dependency injection.
@@ -319,11 +319,11 @@ def create_sparse_retriever(
     if bm25_indexer is None:
         from src.ingestion.storage.bm25_indexer import BM25Indexer
         bm25_indexer = BM25Indexer(index_dir=index_dir)
-    
+
     if vector_store is None:
         from src.libs.vector_store.vector_store_factory import VectorStoreFactory
         vector_store = VectorStoreFactory.create(settings)
-    
+
     return SparseRetriever(
         settings=settings,
         bm25_indexer=bm25_indexer,

@@ -13,7 +13,7 @@ Reference:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.core.types import RetrievalResult
 
@@ -59,10 +59,10 @@ class RRFFusion:
         ... ]
         >>> fused = fusion.fuse([dense_results, sparse_results], top_k=5)
     """
-    
+
     # Default smoothing constant as recommended in the original RRF paper
     DEFAULT_K = 60
-    
+
     def __init__(self, k: int = DEFAULT_K) -> None:
         """Initialize RRF fusion with configurable smoothing constant.
         
@@ -77,16 +77,16 @@ class RRFFusion:
         """
         if not isinstance(k, int) or k <= 0:
             raise ValueError(f"k must be a positive integer, got {k}")
-        
+
         self.k = k
         logger.info(f"RRFFusion initialized with k={k}")
-    
+
     def fuse(
         self,
-        ranking_lists: List[List[RetrievalResult]],
-        top_k: Optional[int] = None,
-        trace: Optional[Any] = None,
-    ) -> List[RetrievalResult]:
+        ranking_lists: list[list[RetrievalResult]],
+        top_k: int | None = None,
+        trace: Any | None = None,
+    ) -> list[RetrievalResult]:
         """Fuse multiple ranking lists using Reciprocal Rank Fusion.
         
         Args:
@@ -117,40 +117,40 @@ class RRFFusion:
         """
         if not ranking_lists:
             raise ValueError("ranking_lists cannot be empty")
-        
+
         # Filter out empty lists
         non_empty_lists = [lst for lst in ranking_lists if lst]
-        
+
         if not non_empty_lists:
             logger.debug("All ranking lists are empty, returning empty result")
             return []
-        
+
         logger.debug(
             f"Fusing {len(non_empty_lists)} ranking lists with "
             f"sizes {[len(lst) for lst in non_empty_lists]}"
         )
-        
+
         # Step 1: Calculate RRF scores for each unique chunk
-        rrf_scores: Dict[str, float] = {}
-        chunk_data: Dict[str, RetrievalResult] = {}  # Preserve text/metadata
-        
+        rrf_scores: dict[str, float] = {}
+        chunk_data: dict[str, RetrievalResult] = {}  # Preserve text/metadata
+
         for list_idx, ranking_list in enumerate(non_empty_lists):
             for rank, result in enumerate(ranking_list, start=1):
                 chunk_id = result.chunk_id
-                
+
                 # Calculate RRF contribution: 1 / (k + rank)
                 rrf_contribution = 1.0 / (self.k + rank)
-                
+
                 # Accumulate scores
                 if chunk_id not in rrf_scores:
                     rrf_scores[chunk_id] = 0.0
                     # Store first occurrence's data (text, metadata)
                     chunk_data[chunk_id] = result
-                
+
                 rrf_scores[chunk_id] += rrf_contribution
-        
+
         logger.debug(f"Computed RRF scores for {len(rrf_scores)} unique chunks")
-        
+
         # Step 2: Create fused results with RRF scores
         fused_results = []
         for chunk_id, rrf_score in rrf_scores.items():
@@ -163,28 +163,28 @@ class RRFFusion:
                     metadata=original.metadata.copy(),
                 )
             )
-        
+
         # Step 3: Sort by RRF score (descending), then by chunk_id for stability
         fused_results.sort(key=lambda r: (-r.score, r.chunk_id))
-        
+
         # Step 4: Apply top_k limit if specified
         if top_k is not None and top_k > 0:
             fused_results = fused_results[:top_k]
-        
+
         logger.debug(
             f"Fusion complete: {len(fused_results)} results "
             f"(top_k={top_k if top_k else 'all'})"
         )
-        
+
         return fused_results
-    
+
     def fuse_with_weights(
         self,
-        ranking_lists: List[List[RetrievalResult]],
-        weights: Optional[List[float]] = None,
-        top_k: Optional[int] = None,
-        trace: Optional[Any] = None,
-    ) -> List[RetrievalResult]:
+        ranking_lists: list[list[RetrievalResult]],
+        weights: list[float] | None = None,
+        top_k: int | None = None,
+        trace: Any | None = None,
+    ) -> list[RetrievalResult]:
         """Fuse multiple ranking lists with optional per-list weights.
         
         This is an extended version of fuse() that allows weighting different
@@ -216,55 +216,55 @@ class RRFFusion:
         """
         if not ranking_lists:
             raise ValueError("ranking_lists cannot be empty")
-        
+
         # Default to uniform weights
         if weights is None:
             weights = [1.0] * len(ranking_lists)
-        
+
         if len(weights) != len(ranking_lists):
             raise ValueError(
                 f"weights length ({len(weights)}) must match "
                 f"ranking_lists length ({len(ranking_lists)})"
             )
-        
+
         # Validate weights
         for i, w in enumerate(weights):
             if not isinstance(w, (int, float)) or w < 0:
                 raise ValueError(f"Weight at index {i} must be non-negative, got {w}")
-        
+
         # Filter out empty lists (keep their weights aligned)
         filtered = [
             (lst, w) for lst, w in zip(ranking_lists, weights) if lst
         ]
-        
+
         if not filtered:
             logger.debug("All ranking lists are empty, returning empty result")
             return []
-        
+
         non_empty_lists, filtered_weights = zip(*filtered)
-        
+
         logger.debug(
             f"Fusing {len(non_empty_lists)} ranking lists with "
             f"weights={list(filtered_weights)}"
         )
-        
+
         # Calculate weighted RRF scores
-        rrf_scores: Dict[str, float] = {}
-        chunk_data: Dict[str, RetrievalResult] = {}
-        
+        rrf_scores: dict[str, float] = {}
+        chunk_data: dict[str, RetrievalResult] = {}
+
         for list_idx, (ranking_list, weight) in enumerate(zip(non_empty_lists, filtered_weights)):
             for rank, result in enumerate(ranking_list, start=1):
                 chunk_id = result.chunk_id
-                
+
                 # Weighted RRF contribution
                 rrf_contribution = weight * (1.0 / (self.k + rank))
-                
+
                 if chunk_id not in rrf_scores:
                     rrf_scores[chunk_id] = 0.0
                     chunk_data[chunk_id] = result
-                
+
                 rrf_scores[chunk_id] += rrf_contribution
-        
+
         # Create and sort results
         fused_results = [
             RetrievalResult(
@@ -275,12 +275,12 @@ class RRFFusion:
             )
             for chunk_id, rrf_score in rrf_scores.items()
         ]
-        
+
         fused_results.sort(key=lambda r: (-r.score, r.chunk_id))
-        
+
         if top_k is not None and top_k > 0:
             fused_results = fused_results[:top_k]
-        
+
         return fused_results
 
 
@@ -309,5 +309,5 @@ def rrf_score(rank: int, k: int = RRFFusion.DEFAULT_K) -> float:
         raise ValueError(f"rank must be a positive integer, got {rank}")
     if not isinstance(k, int) or k <= 0:
         raise ValueError(f"k must be a positive integer, got {k}")
-    
+
     return 1.0 / (k + rank)

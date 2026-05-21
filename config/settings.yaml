@@ -3,48 +3,36 @@
 # Edit this file to configure LLM, Embedding, VectorStore, and other services.
 
 # =============================================================================
-# LLM Configuration
+# LLM Configuration (via Plato Proxy api.bltcy.ai)
 # =============================================================================
 llm:
-  provider: "openai"  # Options: openai, azure, ollama, deepseek
-  model: "gpt-4o"
-  deployment_name: "gpt-4o"
-  azure_endpoint: "https://YOUR_ENDPOINT.openai.azure.com/"
-  api_version: "2024-02-15-preview"
-  api_key: "YOUR_API_KEY_HERE"
+  provider: "openai"
+  model: "gpt-4o-mini"
+  base_url: "https://api.bltcy.ai/v1"
+  api_key: "sk-8G9qwY3H5e2VKUPyY558imTUCAw1vLDUFnXRINWoozMy4o80"
   temperature: 0.0
   max_tokens: 4096
 
 # =============================================================================
-# Embedding Configuration
+# Embedding Configuration (via Plato Proxy api.bltcy.ai)
 # =============================================================================
 embedding:
-  provider: "openai"  # Options: openai, azure, ollama
-  model: "text-embedding-ada-002"
-  dimensions: 1536  # text-embedding-ada-002 固定维度 (不传递给API, 仅用于验证)
-  # Azure-compatible settings (azure_endpoint triggers Azure compat mode):
-  azure_endpoint: "https://YOUR_ENDPOINT.openai.azure.com/"
-  deployment_name: "text-embedding-ada-002"
-  api_version: "2024-02-15-preview"
-  api_key: "YOUR_API_KEY_HERE"
-  # OpenAI-specific settings (if provider is openai):
-  # api_key: "YOUR_API_KEY_HERE"
+  provider: "openai"
+  model: "text-embedding-3-small"
+  dimensions: 1536
+  base_url: "https://api.bltcy.ai/v1"
+  api_key: "sk-8G9qwY3H5e2VKUPyY558imTUCAw1vLDUFnXRINWoozMy4o80"
 
 # =============================================================================
-# Vision LLM Configuration (for Image Captioning)
+# Vision LLM Configuration (for Image Captioning, via Plato Proxy api.bltcy.ai)
 # =============================================================================
 vision_llm:
-  enabled: true  # Set to true to enable vision capabilities
-  provider: "openai"  # Options: openai, azure, ollama
-  model: "gpt-4o"  # Options: gpt-4o, gpt-4-vision-preview (OpenAI), llava (Ollama)
-  # Azure-compatible settings (azure_endpoint triggers Azure compat mode):
-  azure_endpoint: "https://YOUR_ENDPOINT.openai.azure.com/"
-  deployment_name: "gpt-4o"
-  api_version: "2024-02-15-preview"
-  api_key: "YOUR_API_KEY_HERE"
-  # Ollama-specific settings (if provider is ollama):
-  # base_url: "http://localhost:11434"
-  max_image_size: 2048  # Max dimension (width/height) for image compression
+  enabled: true
+  provider: "openai"
+  model: "gpt-4o-mini"
+  base_url: "https://api.bltcy.ai/v1"
+  api_key: "sk-8G9qwY3H5e2VKUPyY558imTUCAw1vLDUFnXRINWoozMy4o80"
+  max_image_size: 2048
 
 # =============================================================================
 # Vector Store Configuration
@@ -100,12 +88,12 @@ ingestion:
   chunk_overlap: 200
   splitter: "recursive"  # Options: recursive, semantic, fixed_length
   batch_size: 100
-  
+
   # Chunk Refiner Configuration (C5)
   chunk_refiner:
     use_llm: true  # Set to true to enable LLM-based refinement (requires LLM config)
     # When use_llm is false or LLM call fails, falls back to rule-based refinement
-  
+
   # Metadata Enricher Configuration (C6)
   metadata_enricher:
     use_llm: true  # Set to true to enable LLM-based enrichment (requires LLM config)

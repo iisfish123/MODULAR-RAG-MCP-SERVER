@@ -40,9 +40,9 @@ class RerankerFactory:
     - Fallback: Disabled or 'none' provider returns NoneReranker.
     - Fail-Fast: Raises clear errors for unknown providers.
     """
-    
+
     _PROVIDERS: dict[str, type[BaseReranker]] = {}
-    
+
     @classmethod
     def register_provider(cls, name: str, provider_class: type[BaseReranker]) -> None:
         """Register a new Reranker provider implementation.
@@ -59,7 +59,7 @@ class RerankerFactory:
                 f"Provider class {provider_class.__name__} must inherit from BaseReranker"
             )
         cls._PROVIDERS[name.lower()] = provider_class
-    
+
     @classmethod
     def create(cls, settings: Settings, **override_kwargs: Any) -> BaseReranker:
         """Create a Reranker instance based on configuration.
@@ -79,12 +79,12 @@ class RerankerFactory:
         if "llm" not in cls._PROVIDERS:
             LLMReranker = _lazy_import_llm_reranker()
             cls.register_provider("llm", LLMReranker)
-        
+
         # Lazy register Cross-Encoder reranker if not already registered
         if "cross_encoder" not in cls._PROVIDERS:
             CrossEncoderReranker = _lazy_import_cross_encoder_reranker()
             cls.register_provider("cross_encoder", CrossEncoderReranker)
-        
+
         try:
             rerank_settings = settings.rerank
             if rerank_settings is None:
@@ -96,10 +96,10 @@ class RerankerFactory:
                 "Missing required configuration: settings.rerank.provider. "
                 "Please ensure 'rerank.provider' is specified in settings.yaml"
             ) from e
-        
+
         if not enabled or provider_name == "none":
             return NoneReranker(settings=settings, **override_kwargs)
-        
+
         provider_class = cls._PROVIDERS.get(provider_name)
         if provider_class is None:
             available = ", ".join(sorted(cls._PROVIDERS.keys())) if cls._PROVIDERS else "none"
@@ -107,14 +107,14 @@ class RerankerFactory:
                 f"Unsupported Reranker provider: '{provider_name}'. "
                 f"Available providers: {available}."
             )
-        
+
         try:
             return provider_class(settings=settings, **override_kwargs)
         except Exception as e:
             raise RuntimeError(
                 f"Failed to instantiate Reranker provider '{provider_name}': {e}"
             ) from e
-    
+
     @classmethod
     def list_providers(cls) -> list[str]:
         """List all registered provider names.

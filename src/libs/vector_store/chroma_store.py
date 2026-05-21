@@ -7,8 +7,7 @@ a lightweight, open-source embedding database designed for local-first deploymen
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 try:
     import chromadb
@@ -58,7 +57,7 @@ class ChromaStore(BaseVectorStore):
         >>> store.upsert(records)
         >>> results = store.query([0.1, 0.2, 0.3], top_k=5)
     """
-    
+
     def __init__(self, settings: Settings, **kwargs: Any) -> None:
         """Initialize ChromaStore with configuration.
         
@@ -76,7 +75,7 @@ class ChromaStore(BaseVectorStore):
                 "chromadb package is required for ChromaStore. "
                 "Install it with: pip install chromadb"
             )
-        
+
         # Extract configuration
         try:
             vector_store_config = settings.vector_store
@@ -85,28 +84,28 @@ class ChromaStore(BaseVectorStore):
                 "Missing required configuration: settings.vector_store. "
                 "Please ensure 'vector_store' section exists in settings.yaml"
             ) from e
-        
+
         # Collection name (allow override)
         self.collection_name = kwargs.get(
             'collection_name',
             getattr(vector_store_config, 'collection_name', 'knowledge_hub')
         )
-        
+
         # Persist directory (allow override)
         persist_dir_str = kwargs.get(
             'persist_directory',
             getattr(vector_store_config, 'persist_directory', './data/db/chroma')
         )
         self.persist_directory = resolve_path(persist_dir_str)
-        
+
         # Ensure persist directory exists
         self.persist_directory.mkdir(parents=True, exist_ok=True)
-        
+
         logger.info(
             f"Initializing ChromaStore: collection='{self.collection_name}', "
             f"persist_directory='{self.persist_directory}'"
         )
-        
+
         # Initialize ChromaDB client with persistent storage
         try:
             self.client = chromadb.PersistentClient(
@@ -120,7 +119,7 @@ class ChromaStore(BaseVectorStore):
             raise RuntimeError(
                 f"Failed to initialize ChromaDB client at '{self.persist_directory}': {e}"
             ) from e
-        
+
         # Get or create collection
         try:
             self.collection = self.client.get_or_create_collection(
@@ -131,16 +130,16 @@ class ChromaStore(BaseVectorStore):
             raise RuntimeError(
                 f"Failed to get or create collection '{self.collection_name}': {e}"
             ) from e
-        
+
         logger.info(
             f"ChromaStore initialized successfully. "
             f"Collection count: {self.collection.count()}"
         )
-    
+
     def upsert(
         self,
-        records: List[Dict[str, Any]],
-        trace: Optional[Any] = None,
+        records: list[dict[str, Any]],
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Insert or update records in ChromaDB.
@@ -159,33 +158,33 @@ class ChromaStore(BaseVectorStore):
         """
         # Validate records
         self.validate_records(records)
-        
+
         # Prepare data for ChromaDB
         ids = []
         embeddings = []
         metadatas = []
         documents = []  # ChromaDB requires documents field
-        
+
         for record in records:
             ids.append(str(record['id']))
             embeddings.append(record['vector'])
-            
+
             # Metadata: extract or default to empty dict
             metadata = record.get('metadata', {})
             # Ensure all metadata values are JSON-serializable
             # ChromaDB requires string, int, float, or bool values
             sanitized_metadata = self._sanitize_metadata(metadata)
-            
+
             # ChromaDB requires non-empty metadata dict
             if not sanitized_metadata:
                 sanitized_metadata = {'_placeholder': 'true'}
-            
+
             metadatas.append(sanitized_metadata)
-            
+
             # Document: use metadata.text if available, otherwise use id
             document = metadata.get('text', record['id'])
             documents.append(str(document))
-        
+
         # Perform upsert (ChromaDB's add() is idempotent with same IDs)
         try:
             self.collection.upsert(
@@ -199,15 +198,15 @@ class ChromaStore(BaseVectorStore):
             raise RuntimeError(
                 f"Failed to upsert {len(records)} records to ChromaDB: {e}"
             ) from e
-    
+
     def query(
         self,
-        vector: List[float],
+        vector: list[float],
         top_k: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
-        trace: Optional[Any] = None,
+        filters: dict[str, Any] | None = None,
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Query ChromaDB for similar vectors.
         
         Args:
@@ -230,10 +229,10 @@ class ChromaStore(BaseVectorStore):
         """
         # Validate query parameters
         self.validate_query_vector(vector, top_k)
-        
+
         # Build ChromaDB where clause from filters
         where_clause = self._build_where_clause(filters) if filters else None
-        
+
         # Perform query
         try:
             results = self.collection.query(
@@ -246,38 +245,38 @@ class ChromaStore(BaseVectorStore):
             raise RuntimeError(
                 f"Failed to query ChromaDB with top_k={top_k}: {e}"
             ) from e
-        
+
         # Transform results to standard format
         # ChromaDB returns nested lists: [[id1, id2, ...]]
         output = []
-        
+
         if results and results['ids'] and results['ids'][0]:
             ids = results['ids'][0]
             distances = results['distances'][0] if 'distances' in results else [0.0] * len(ids)
             metadatas = results['metadatas'][0] if 'metadatas' in results else [{}] * len(ids)
             documents = results['documents'][0] if 'documents' in results else [''] * len(ids)
-            
+
             for i, record_id in enumerate(ids):
                 # Convert distance to similarity score
                 # ChromaDB returns cosine distance (0=identical, 2=opposite)
                 # Convert to similarity: score = 1 - (distance / 2)
                 distance = distances[i]
                 score = 1.0 - (distance / 2.0)
-                
+
                 output.append({
                     'id': record_id,
                     'score': max(0.0, score),  # Clamp to [0, 1]
                     'text': documents[i] if documents[i] else '',  # Include text from documents
                     'metadata': metadatas[i] if metadatas[i] else {}
                 })
-        
+
         logger.debug(f"Query returned {len(output)} results")
         return output
-    
+
     def delete(
         self,
-        ids: List[str],
-        trace: Optional[Any] = None,
+        ids: list[str],
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Delete records from ChromaDB by IDs.
@@ -293,7 +292,7 @@ class ChromaStore(BaseVectorStore):
         """
         if not ids:
             raise ValueError("IDs list cannot be empty")
-        
+
         try:
             self.collection.delete(ids=[str(id_) for id_ in ids])
             logger.debug(f"Successfully deleted {len(ids)} records from ChromaDB")
@@ -301,11 +300,11 @@ class ChromaStore(BaseVectorStore):
             raise RuntimeError(
                 f"Failed to delete {len(ids)} records from ChromaDB: {e}"
             ) from e
-    
+
     def clear(
         self,
-        collection_name: Optional[str] = None,
-        trace: Optional[Any] = None,
+        collection_name: str | None = None,
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Clear all records from the ChromaDB collection.
@@ -320,7 +319,7 @@ class ChromaStore(BaseVectorStore):
         """
         try:
             target_collection = collection_name or self.collection_name
-            
+
             # Delete and recreate collection (most efficient way to clear in Chroma)
             self.client.delete_collection(name=target_collection)
             self.collection = self.client.get_or_create_collection(
@@ -335,8 +334,8 @@ class ChromaStore(BaseVectorStore):
 
     def delete_by_metadata(
         self,
-        filter_dict: Dict[str, Any],
-        trace: Optional[Any] = None,
+        filter_dict: dict[str, Any],
+        trace: Any | None = None,
     ) -> int:
         """Delete records matching a metadata filter.
 
@@ -375,8 +374,8 @@ class ChromaStore(BaseVectorStore):
             raise RuntimeError(
                 f"Failed to delete by metadata {filter_dict}: {e}"
             ) from e
-    
-    def _sanitize_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         """Sanitize metadata to ensure ChromaDB compatibility.
         
         ChromaDB requires metadata values to be str, int, float, or bool.
@@ -401,10 +400,10 @@ class ChromaStore(BaseVectorStore):
             else:
                 # Convert to string as fallback
                 sanitized[key] = str(value)
-        
+
         return sanitized
-    
-    def _build_where_clause(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _build_where_clause(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Build ChromaDB where clause from filters.
         
         Converts standard filter dict to ChromaDB's query format.
@@ -430,10 +429,10 @@ class ChromaStore(BaseVectorStore):
             else:
                 # Simple equality
                 where[key] = value
-        
+
         return where
-    
-    def get_collection_stats(self) -> Dict[str, Any]:
+
+    def get_collection_stats(self) -> dict[str, Any]:
         """Get statistics about the current collection.
         
         Returns:
@@ -447,13 +446,13 @@ class ChromaStore(BaseVectorStore):
             'name': self.collection_name,
             'metadata': self.collection.metadata
         }
-    
+
     def get_by_ids(
         self,
-        ids: List[str],
-        trace: Optional[Any] = None,
+        ids: list[str],
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve records by their IDs from ChromaDB.
         
         This method is used by SparseRetriever to fetch text and metadata
@@ -478,10 +477,10 @@ class ChromaStore(BaseVectorStore):
         """
         if not ids:
             raise ValueError("IDs list cannot be empty")
-        
+
         # Ensure all IDs are strings
         str_ids = [str(id_) for id_ in ids]
-        
+
         try:
             # ChromaDB's get method retrieves records by IDs
             results = self.collection.get(
@@ -492,22 +491,22 @@ class ChromaStore(BaseVectorStore):
             raise RuntimeError(
                 f"Failed to get records by IDs from ChromaDB: {e}"
             ) from e
-        
+
         # Build a mapping from ID to result for O(1) lookup
-        id_to_result: Dict[str, Dict[str, Any]] = {}
-        
+        id_to_result: dict[str, dict[str, Any]] = {}
+
         if results and results.get('ids'):
             result_ids = results['ids']
             documents = results.get('documents', [None] * len(result_ids))
             metadatas = results.get('metadatas', [{}] * len(result_ids))
-            
+
             for i, record_id in enumerate(result_ids):
                 id_to_result[record_id] = {
                     'id': record_id,
                     'text': documents[i] if documents and documents[i] else '',
                     'metadata': metadatas[i] if metadatas and metadatas[i] else {}
                 }
-        
+
         # Return results in the same order as input ids
         output = []
         for id_ in str_ids:
@@ -516,6 +515,6 @@ class ChromaStore(BaseVectorStore):
             else:
                 # ID not found, return empty dict
                 output.append({})
-        
+
         logger.debug(f"Retrieved {len([r for r in output if r])} of {len(ids)} records by IDs")
         return output

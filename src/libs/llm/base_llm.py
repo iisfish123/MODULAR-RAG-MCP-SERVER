@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -36,8 +36,8 @@ class ChatResponse:
     """
     content: str
     model: str
-    usage: Optional[Dict[str, int]] = None
-    raw_response: Optional[Any] = None
+    usage: dict[str, int] | None = None
+    raw_response: Any | None = None
 
 
 class BaseLLM(ABC):
@@ -52,12 +52,12 @@ class BaseLLM(ABC):
     - Observable: Accepts optional TraceContext for observability integration.
     - Config-Driven: Instances are created via factory based on settings.
     """
-    
+
     @abstractmethod
     def chat(
         self,
-        messages: List[Message],
-        trace: Optional[Any] = None,
+        messages: list[Message],
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> ChatResponse:
         """Generate a chat completion response.
@@ -75,8 +75,8 @@ class BaseLLM(ABC):
             RuntimeError: If the LLM provider call fails.
         """
         pass
-    
-    def validate_messages(self, messages: List[Message]) -> None:
+
+    def validate_messages(self, messages: list[Message]) -> None:
         """Validate message list structure.
         
         Args:
@@ -87,7 +87,7 @@ class BaseLLM(ABC):
         """
         if not messages:
             raise ValueError("Messages list cannot be empty")
-        
+
         valid_roles = {"system", "user", "assistant"}
         for i, msg in enumerate(messages):
             if not isinstance(msg, Message):

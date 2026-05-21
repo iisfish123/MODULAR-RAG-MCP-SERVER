@@ -8,7 +8,7 @@ and endpoint configuration.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.libs.llm.base_llm import BaseLLM, ChatResponse, Message
 
@@ -38,16 +38,16 @@ class AzureLLM(BaseLLM):
         >>> llm = AzureLLM(settings, endpoint='https://my-resource.openai.azure.com')
         >>> response = llm.chat([Message(role='user', content='Hello')])
     """
-    
+
     DEFAULT_API_VERSION = "2024-02-15-preview"
-    
+
     def __init__(
         self,
         settings: Any,
-        api_key: Optional[str] = None,
-        endpoint: Optional[str] = None,
-        deployment_name: Optional[str] = None,
-        api_version: Optional[str] = None,
+        api_key: str | None = None,
+        endpoint: str | None = None,
+        deployment_name: str | None = None,
+        api_version: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the Azure OpenAI LLM provider.
@@ -65,17 +65,17 @@ class AzureLLM(BaseLLM):
         """
         # Deployment name: explicit > settings.deployment_name > settings.model
         self.deployment_name = (
-            deployment_name 
-            or getattr(settings.llm, 'deployment_name', None) 
+            deployment_name
+            or getattr(settings.llm, 'deployment_name', None)
             or settings.llm.model
         )
         self.default_temperature = settings.llm.temperature
         self.default_max_tokens = settings.llm.max_tokens
-        
+
         # API key: explicit > settings > env var
         self.api_key = (
-            api_key 
-            or getattr(settings.llm, 'api_key', None) 
+            api_key
+            or getattr(settings.llm, 'api_key', None)
             or os.environ.get("AZURE_OPENAI_API_KEY")
         )
         if not self.api_key:
@@ -83,11 +83,11 @@ class AzureLLM(BaseLLM):
                 "Azure OpenAI API key not provided. Set in settings.yaml (llm.api_key), "
                 "AZURE_OPENAI_API_KEY environment variable, or pass api_key parameter."
             )
-        
+
         # Endpoint: explicit > settings > env var
         self.endpoint = (
-            endpoint 
-            or getattr(settings.llm, 'azure_endpoint', None) 
+            endpoint
+            or getattr(settings.llm, 'azure_endpoint', None)
             or os.environ.get("AZURE_OPENAI_ENDPOINT")
         )
         if not self.endpoint:
@@ -95,21 +95,21 @@ class AzureLLM(BaseLLM):
                 "Azure OpenAI endpoint not provided. Set in settings.yaml (llm.azure_endpoint), "
                 "AZURE_OPENAI_ENDPOINT environment variable, or pass endpoint parameter."
             )
-        
+
         # API version: explicit > settings > default
         self.api_version = (
-            api_version 
-            or getattr(settings.llm, 'api_version', None) 
+            api_version
+            or getattr(settings.llm, 'api_version', None)
             or self.DEFAULT_API_VERSION
         )
-        
+
         # Store any additional kwargs for future use
         self._extra_config = kwargs
-    
+
     def chat(
         self,
-        messages: List[Message],
-        trace: Optional[Any] = None,
+        messages: list[Message],
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> ChatResponse:
         """Generate a chat completion using Azure OpenAI API.
@@ -128,15 +128,15 @@ class AzureLLM(BaseLLM):
         """
         # Validate input
         self.validate_messages(messages)
-        
+
         # Prepare request parameters
         temperature = kwargs.get("temperature", self.default_temperature)
         max_tokens = kwargs.get("max_tokens", self.default_max_tokens)
         deployment = kwargs.get("deployment_name", self.deployment_name)
-        
+
         # Convert messages to API format
         api_messages = [{"role": m.role, "content": m.content} for m in messages]
-        
+
         # Make API call
         try:
             response_data = self._call_api(
@@ -145,11 +145,11 @@ class AzureLLM(BaseLLM):
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            
+
             # Parse response
             content = response_data["choices"][0]["message"]["content"]
             usage = response_data.get("usage")
-            
+
             return ChatResponse(
                 content=content,
                 model=response_data.get("model", deployment),
@@ -166,14 +166,14 @@ class AzureLLM(BaseLLM):
             raise AzureLLMError(
                 f"[Azure] API call failed: {type(e).__name__}: {e}"
             ) from e
-    
+
     def _call_api(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         deployment: str,
         temperature: float,
         max_tokens: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Make the actual API call to Azure OpenAI.
         
         This method is separated to allow easy mocking in tests.
@@ -191,7 +191,7 @@ class AzureLLM(BaseLLM):
             AzureLLMError: If the API call fails.
         """
         import httpx
-        
+
         # Azure endpoint format:
         # {endpoint}/openai/deployments/{deployment}/chat/completions?api-version={version}
         url = (
@@ -207,27 +207,27 @@ class AzureLLM(BaseLLM):
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        
+
         try:
             with httpx.Client(timeout=60.0) as client:
                 response = client.post(url, json=payload, headers=headers)
-                
+
                 if response.status_code != 200:
                     error_detail = self._parse_error_response(response)
                     raise AzureLLMError(
                         f"[Azure] API error (HTTP {response.status_code}): {error_detail}"
                     )
-                
+
                 return response.json()
         except httpx.TimeoutException as e:
             raise AzureLLMError(
-                f"[Azure] Request timed out after 60 seconds"
+                "[Azure] Request timed out after 60 seconds"
             ) from e
         except httpx.RequestError as e:
             raise AzureLLMError(
                 f"[Azure] Connection failed: {type(e).__name__}: {e}"
             ) from e
-    
+
     def _parse_error_response(self, response: Any) -> str:
         """Parse error details from API response.
         

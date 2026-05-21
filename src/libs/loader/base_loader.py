@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
 
 from src.core.types import Document
 
@@ -34,7 +33,7 @@ class BaseLoader(ABC):
     - Structure normalization (to Markdown when possible)
     - Optional: Image extraction and placeholder insertion
     """
-    
+
     @abstractmethod
     def load(self, file_path: str | Path) -> Document:
         """Load and parse a document file.
@@ -58,7 +57,7 @@ class BaseLoader(ABC):
             >>> assert doc.text  # Non-empty text
         """
         pass
-    
+
     @staticmethod
     def _validate_file(file_path: str | Path) -> Path:
         """Validate that file exists and is readable.

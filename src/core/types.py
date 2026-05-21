@@ -12,8 +12,8 @@ Design Principles:
 - Type-safe: Full type hints for static analysis
 """
 
-from dataclasses import dataclass, field, asdict
-from typing import Dict, Any, List, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -58,22 +58,22 @@ class Document:
         ...     }
         ... )
     """
-    
+
     id: str
     text: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
+    metadata: dict[str, Any] = field(default_factory=dict)
+
     def __post_init__(self):
         """Validate required metadata fields."""
         if "source_path" not in self.metadata:
             raise ValueError("Document metadata must contain 'source_path'")
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return asdict(self)
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Document":
+    def from_dict(cls, data: dict[str, Any]) -> "Document":
         """Create Document from dictionary."""
         return cls(**data)
 
@@ -117,25 +117,25 @@ class Chunk:
         ...     end_offset=150
         ... )
     """
-    
+
     id: str
     text: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    start_offset: Optional[int] = None
-    end_offset: Optional[int] = None
-    source_ref: Optional[str] = None
-    
+    metadata: dict[str, Any] = field(default_factory=dict)
+    start_offset: int | None = None
+    end_offset: int | None = None
+    source_ref: str | None = None
+
     def __post_init__(self):
         """Validate required metadata fields."""
         if "source_path" not in self.metadata:
             raise ValueError("Chunk metadata must contain 'source_path'")
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return asdict(self)
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Chunk":
+    def from_dict(cls, data: dict[str, Any]) -> "Chunk":
         """Create Chunk from dictionary."""
         return cls(**data)
 
@@ -178,30 +178,30 @@ class ChunkRecord:
         ...     sparse_vector={"word1": 0.5, "word2": 0.3}
         ... )
     """
-    
+
     id: str
     text: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    dense_vector: Optional[List[float]] = None
-    sparse_vector: Optional[Dict[str, float]] = None
-    
+    metadata: dict[str, Any] = field(default_factory=dict)
+    dense_vector: list[float] | None = None
+    sparse_vector: dict[str, float] | None = None
+
     def __post_init__(self):
         """Validate required metadata fields."""
         if "source_path" not in self.metadata:
             raise ValueError("ChunkRecord metadata must contain 'source_path'")
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return asdict(self)
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ChunkRecord":
+    def from_dict(cls, data: dict[str, Any]) -> "ChunkRecord":
         """Create ChunkRecord from dictionary."""
         return cls(**data)
-    
+
     @classmethod
-    def from_chunk(cls, chunk: Chunk, dense_vector: Optional[List[float]] = None,
-                   sparse_vector: Optional[Dict[str, float]] = None) -> "ChunkRecord":
+    def from_chunk(cls, chunk: Chunk, dense_vector: list[float] | None = None,
+                   sparse_vector: dict[str, float] | None = None) -> "ChunkRecord":
         """Create ChunkRecord from a Chunk with vectors.
         
         Args:
@@ -222,9 +222,9 @@ class ChunkRecord:
 
 
 # Type aliases for convenience
-Metadata = Dict[str, Any]
-Vector = List[float]
-SparseVector = Dict[str, float]
+Metadata = dict[str, Any]
+Vector = list[float]
+SparseVector = dict[str, float]
 
 
 @dataclass
@@ -247,18 +247,18 @@ class ProcessedQuery:
         ...     filters={"collection": "docs"}
         ... )
     """
-    
+
     original_query: str
-    keywords: List[str] = field(default_factory=list)
-    filters: Dict[str, Any] = field(default_factory=dict)
-    expanded_terms: List[str] = field(default_factory=list)
-    
-    def to_dict(self) -> Dict[str, Any]:
+    keywords: list[str] = field(default_factory=list)
+    filters: dict[str, Any] = field(default_factory=dict)
+    expanded_terms: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return asdict(self)
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ProcessedQuery":
+    def from_dict(cls, data: dict[str, Any]) -> "ProcessedQuery":
         """Create ProcessedQuery from dictionary."""
         return cls(**data)
 
@@ -288,24 +288,24 @@ class RetrievalResult:
         ...     }
         ... )
     """
-    
+
     chunk_id: str
     score: float
     text: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
+    metadata: dict[str, Any] = field(default_factory=dict)
+
     def __post_init__(self):
         """Validate fields after initialization."""
         if not self.chunk_id:
             raise ValueError("chunk_id cannot be empty")
         if not isinstance(self.score, (int, float)):
             raise ValueError(f"score must be numeric, got {type(self.score).__name__}")
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return asdict(self)
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RetrievalResult":
+    def from_dict(cls, data: dict[str, Any]) -> "RetrievalResult":
         """Create RetrievalResult from dictionary."""
         return cls(**data)

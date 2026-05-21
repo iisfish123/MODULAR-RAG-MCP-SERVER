@@ -1,10 +1,9 @@
 """Base class for chunk transform operations."""
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
-from src.core.types import Chunk
 from src.core.trace.trace_context import TraceContext
+from src.core.types import Chunk
 
 
 class BaseTransform(ABC):
@@ -19,13 +18,13 @@ class BaseTransform(ABC):
         - Observable: Records processing info in TraceContext
         - Graceful Degradation: Returns original chunk on unrecoverable errors
     """
-    
+
     @abstractmethod
     def transform(
         self,
-        chunks: List[Chunk],
-        trace: Optional[TraceContext] = None
-    ) -> List[Chunk]:
+        chunks: list[Chunk],
+        trace: TraceContext | None = None
+    ) -> list[Chunk]:
         """Transform a list of chunks.
         
         Args:

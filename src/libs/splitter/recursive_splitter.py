@@ -7,7 +7,7 @@ hierarchically to maintain semantic coherence.
 
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any
 
 try:
     from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -38,7 +38,7 @@ class RecursiveSplitter(BaseSplitter):
     Raises:
         ImportError: If langchain-text-splitters package is not installed.
     """
-    
+
     DEFAULT_SEPARATORS = [
         "\n\n",  # Double newline (paragraphs)
         "\n",    # Single newline
@@ -50,13 +50,13 @@ class RecursiveSplitter(BaseSplitter):
         " ",     # Spaces
         "",      # Characters
     ]
-    
+
     def __init__(
         self,
         settings: Any,
-        chunk_size: Optional[int] = None,
-        chunk_overlap: Optional[int] = None,
-        separators: Optional[List[str]] = None,
+        chunk_size: int | None = None,
+        chunk_overlap: int | None = None,
+        separators: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize RecursiveSplitter.
@@ -77,9 +77,9 @@ class RecursiveSplitter(BaseSplitter):
                 "langchain-text-splitters is not installed. "
                 "Install it with: pip install langchain-text-splitters"
             )
-        
+
         self.settings = settings
-        
+
         # Extract configuration from settings with overrides
         try:
             ingestion_config = settings.ingestion
@@ -90,22 +90,22 @@ class RecursiveSplitter(BaseSplitter):
                 "Missing ingestion configuration in settings. "
                 "Expected settings.ingestion.chunk_size and settings.ingestion.chunk_overlap"
             ) from e
-        
+
         # Validate configuration
         if not isinstance(self.chunk_size, int) or self.chunk_size <= 0:
             raise ValueError(f"chunk_size must be a positive integer, got: {self.chunk_size}")
-        
+
         if not isinstance(self.chunk_overlap, int) or self.chunk_overlap < 0:
             raise ValueError(f"chunk_overlap must be a non-negative integer, got: {self.chunk_overlap}")
-        
+
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError(
                 f"chunk_overlap ({self.chunk_overlap}) must be less than "
                 f"chunk_size ({self.chunk_size})"
             )
-        
+
         self.separators = separators if separators is not None else self.DEFAULT_SEPARATORS
-        
+
         # Initialize LangChain splitter
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.chunk_size,
@@ -115,13 +115,13 @@ class RecursiveSplitter(BaseSplitter):
             is_separator_regex=False,
             **kwargs,
         )
-    
+
     def split_text(
         self,
         text: str,
-        trace: Optional[Any] = None,
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[str]:
+    ) -> list[str]:
         """Split text into chunks recursively.
         
         This method splits text by trying different separators hierarchically,
@@ -148,20 +148,20 @@ class RecursiveSplitter(BaseSplitter):
         """
         # Validate input
         self.validate_text(text)
-        
+
         try:
             # Perform splitting
             chunks = self._splitter.split_text(text)
-            
+
             # Handle edge case: LangChain may return empty list for very short text
             if not chunks:
                 chunks = [text]
-            
+
             # Validate output
             self.validate_chunks(chunks)
-            
+
             return chunks
-            
+
         except Exception as e:
             # Catch any LangChain errors and provide context
             raise RuntimeError(

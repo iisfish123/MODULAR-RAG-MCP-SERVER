@@ -12,7 +12,8 @@ Design Principles:
 - Deterministic: Same inputs produce same outputs
 """
 
-from typing import List, Optional, Any
+from typing import Any
+
 from src.core.types import Chunk
 from src.libs.embedding.base_embedding import BaseEmbedding
 
@@ -42,7 +43,7 @@ class DenseEncoder:
         >>> print(len(vectors))  # 1
         >>> print(len(vectors[0]))  # dimension (e.g., 1536)
     """
-    
+
     def __init__(
         self,
         embedding: BaseEmbedding,
@@ -59,15 +60,15 @@ class DenseEncoder:
         """
         if batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {batch_size}")
-        
+
         self.embedding = embedding
         self.batch_size = batch_size
-    
+
     def encode(
         self,
-        chunks: List[Chunk],
-        trace: Optional[Any] = None,
-    ) -> List[List[float]]:
+        chunks: list[Chunk],
+        trace: Any | None = None,
+    ) -> list[list[float]]:
         """Encode chunks into dense vectors.
         
         This method:
@@ -98,53 +99,53 @@ class DenseEncoder:
         """
         if not chunks:
             raise ValueError("Cannot encode empty chunks list")
-        
+
         # Extract text from chunks
         texts = [chunk.text for chunk in chunks]
-        
+
         # Validate that all texts are non-empty
         for i, text in enumerate(texts):
             if not text or not text.strip():
                 raise ValueError(
                     f"Chunk at index {i} (id={chunks[i].id}) has empty or whitespace-only text"
                 )
-        
+
         # Process in batches
-        all_vectors: List[List[float]] = []
-        
+        all_vectors: list[list[float]] = []
+
         for batch_start in range(0, len(texts), self.batch_size):
             batch_end = min(batch_start + self.batch_size, len(texts))
             batch_texts = texts[batch_start:batch_end]
-            
+
             try:
                 # Call embedding provider
                 batch_vectors = self.embedding.embed(
                     texts=batch_texts,
                     trace=trace,
                 )
-                
+
                 # Validate output shape
                 if len(batch_vectors) != len(batch_texts):
                     raise RuntimeError(
                         f"Embedding provider returned {len(batch_vectors)} vectors "
                         f"for {len(batch_texts)} texts in batch {batch_start}-{batch_end}"
                     )
-                
+
                 all_vectors.extend(batch_vectors)
-                
+
             except Exception as e:
                 # Re-raise with context about which batch failed
                 raise RuntimeError(
                     f"Failed to encode batch {batch_start}-{batch_end}: {str(e)}"
                 ) from e
-        
+
         # Final validation
         if len(all_vectors) != len(chunks):
             raise RuntimeError(
                 f"Vector count mismatch: got {len(all_vectors)} vectors "
                 f"for {len(chunks)} chunks"
             )
-        
+
         # Validate vector dimensions are consistent
         if all_vectors:
             expected_dim = len(all_vectors[0])
@@ -154,9 +155,9 @@ class DenseEncoder:
                         f"Inconsistent vector dimensions: vector {i} has "
                         f"{len(vec)} dimensions, expected {expected_dim}"
                     )
-        
+
         return all_vectors
-    
+
     def get_batch_count(self, num_chunks: int) -> int:
         """Calculate number of batches needed for given chunk count.
         

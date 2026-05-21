@@ -22,7 +22,7 @@ Design Principles:
 from __future__ import annotations
 
 import hashlib
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from src.core.types import Chunk, Document
 from src.libs.splitter.splitter_factory import SplitterFactory
@@ -58,7 +58,7 @@ class DocumentChunker:
         >>> print(f"First chunk ID: {chunks[0].id}")
         >>> print(f"First chunk index: {chunks[0].metadata['chunk_index']}")
     """
-    
+
     def __init__(self, settings: Settings):
         """Initialize DocumentChunker with configuration.
         
@@ -71,8 +71,8 @@ class DocumentChunker:
         """
         self._settings = settings
         self._splitter = SplitterFactory.create(settings)
-    
-    def split_document(self, document: Document) -> List[Chunk]:
+
+    def split_document(self, document: Document) -> list[Chunk]:
         """Split a Document into Chunks with full business enrichment.
         
         This is the main entry point that orchestrates the transformation:
@@ -112,31 +112,31 @@ class DocumentChunker:
         """
         if not document.text or not document.text.strip():
             raise ValueError(f"Document {document.id} has no text content to split")
-        
+
         # Step 1: Use underlying splitter to get text fragments
         text_fragments = self._splitter.split_text(document.text)
-        
+
         if not text_fragments:
             raise ValueError(
                 f"Splitter returned no chunks for document {document.id}. "
                 f"Text length: {len(document.text)}"
             )
-        
+
         # Step 2: Transform text fragments into Chunk objects with enrichment
-        chunks: List[Chunk] = []
+        chunks: list[Chunk] = []
         for index, text in enumerate(text_fragments):
             chunk_id = self._generate_chunk_id(document.id, index, text)
             chunk_metadata = self._inherit_metadata(document, index, text)
-            
+
             chunk = Chunk(
                 id=chunk_id,
                 text=text,
                 metadata=chunk_metadata
             )
             chunks.append(chunk)
-        
+
         return chunks
-    
+
     def _generate_chunk_id(self, doc_id: str, index: int, text: str) -> str:
         """Generate unique and deterministic chunk ID.
         
@@ -164,10 +164,10 @@ class DocumentChunker:
         """
         # Compute content hash for uniqueness
         content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
-        
+
         # Format: {doc_id}_{index:04d}_{hash_8chars}
         return f"{doc_id}_{index:04d}_{content_hash}"
-    
+
     def _inherit_metadata(self, document: Document, chunk_index: int, chunk_text: str = "") -> dict:
         """Inherit metadata from document and add chunk-specific fields.
         
@@ -206,20 +206,20 @@ class DocumentChunker:
             ['img_001']
         """
         import re
-        
+
         # Copy all document metadata (shallow copy is sufficient for primitives)
         chunk_metadata = document.metadata.copy()
-        
+
         # Get document-level images for lookup
         doc_images = document.metadata.get("images", [])
-        
+
         # Remove document-level 'images' field - we'll add chunk-specific images below
         chunk_metadata.pop("images", None)
-        
+
         # Add chunk-specific fields
         chunk_metadata["chunk_index"] = chunk_index
         chunk_metadata["source_ref"] = document.id
-        
+
         # Extract image_refs from chunk text by finding [IMAGE: xxx] placeholders
         image_refs = []
         if chunk_text:
@@ -227,9 +227,9 @@ class DocumentChunker:
             pattern = r'\[IMAGE:\s*([^\]]+)\]'
             matches = re.findall(pattern, chunk_text)
             image_refs = [m.strip() for m in matches]
-        
+
         chunk_metadata["image_refs"] = image_refs
-        
+
         # Build chunk-specific 'images' list with full metadata for referenced images
         # This is needed by ImageCaptioner to access image paths for Vision API calls
         chunk_images = []
@@ -238,12 +238,12 @@ class DocumentChunker:
             for img_id in image_refs:
                 if img_id in image_lookup:
                     chunk_images.append(image_lookup[img_id])
-        
+
         if chunk_images:
             chunk_metadata["images"] = chunk_images
-        
+
         # Try to determine page_num from the first referenced image
         if chunk_images:
             chunk_metadata["page_num"] = chunk_images[0].get("page")
-        
+
         return chunk_metadata

@@ -10,11 +10,10 @@ Design Principles:
 - Organized: Images grouped by collection for namespace isolation
 """
 
-import sqlite3
 import shutil
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, List, Dict, Union
 
 
 class ImageStorage:
@@ -66,7 +65,7 @@ class ImageStorage:
         >>> images = storage.list_images("contracts")
         >>> print(len(images))  # 1
     """
-    
+
     def __init__(
         self,
         db_path: str = "data/db/image_index.db",
@@ -82,32 +81,32 @@ class ImageStorage:
         self.images_root = Path(images_root)
         self._conn = None
         self._ensure_database()
-    
+
     def close(self) -> None:
         """Close database connection if open."""
         if self._conn:
             self._conn.close()
             self._conn = None
-    
+
     def __del__(self):
         """Cleanup: close connection on deletion."""
         self.close()
-    
+
     def _ensure_database(self) -> None:
         """Create database file and schema if they don't exist."""
         # Create parent directories
         db_file = Path(self.db_path)
         db_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Create images root directory
         self.images_root.mkdir(parents=True, exist_ok=True)
-        
+
         # Connect and initialize schema
         conn = sqlite3.connect(self.db_path)
         try:
             # Enable WAL mode for concurrent access
             conn.execute("PRAGMA journal_mode=WAL")
-            
+
             # Create table if not exists
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS image_index (
@@ -119,29 +118,29 @@ class ImageStorage:
                     created_at TEXT NOT NULL
                 )
             """)
-            
+
             # Create indexes for efficient queries
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_collection 
                 ON image_index(collection)
             """)
-            
+
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_doc_hash 
                 ON image_index(doc_hash)
             """)
-            
+
             conn.commit()
         finally:
             conn.close()
-    
+
     def save_image(
         self,
         image_id: str,
-        image_data: Union[bytes, Path, str],
-        collection: Optional[str] = None,
-        doc_hash: Optional[str] = None,
-        page_num: Optional[int] = None,
+        image_data: bytes | Path | str,
+        collection: str | None = None,
+        doc_hash: str | None = None,
+        page_num: int | None = None,
         extension: str = "png"
     ) -> str:
         """Save image to filesystem and register in database.
@@ -174,19 +173,19 @@ class ImageStorage:
         """
         if not image_id or not image_id.strip():
             raise ValueError("image_id cannot be empty")
-        
+
         # Determine collection directory
         if collection:
             collection_dir = self.images_root / collection
         else:
             collection_dir = self.images_root / "default"
-        
+
         collection_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Build image file path
         image_filename = f"{image_id}.{extension}"
         image_path = collection_dir / image_filename
-        
+
         # Save image file
         try:
             if isinstance(image_data, bytes):
@@ -201,15 +200,15 @@ class ImageStorage:
             else:
                 raise ValueError(f"Unsupported image_data type: {type(image_data)}")
         except Exception as e:
-            raise IOError(f"Failed to save image {image_id}: {e}")
-        
+            raise OSError(f"Failed to save image {image_id}: {e}")
+
         # Store absolute path for reliable retrieval
         # (relative paths would fail with temp directories in tests)
         stored_path = str(image_path.resolve())
-        
+
         # Register in database
         now = datetime.now(timezone.utc).isoformat()
-        
+
         conn = sqlite3.connect(self.db_path)
         try:
             # Use INSERT OR REPLACE for idempotent operation
@@ -218,22 +217,22 @@ class ImageStorage:
                 (image_id, file_path, collection, doc_hash, page_num, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (image_id, stored_path, collection, doc_hash, page_num, now))
-            
+
             conn.commit()
         except sqlite3.Error as e:
             raise RuntimeError(f"Failed to register image {image_id}: {e}")
         finally:
             conn.close()
-        
+
         return stored_path
-    
+
     def register_image(
         self,
         image_id: str,
-        file_path: Union[Path, str],
-        collection: Optional[str] = None,
-        doc_hash: Optional[str] = None,
-        page_num: Optional[int] = None
+        file_path: Path | str,
+        collection: str | None = None,
+        doc_hash: str | None = None,
+        page_num: int | None = None
     ) -> str:
         """Register an existing image file in the database index.
         
@@ -269,18 +268,18 @@ class ImageStorage:
         """
         if not image_id or not image_id.strip():
             raise ValueError("image_id cannot be empty")
-        
+
         # Verify file exists
         path = Path(file_path)
         if not path.exists():
             raise FileNotFoundError(f"Image file not found: {file_path}")
-        
+
         # Store absolute path for reliable retrieval
         stored_path = str(path.resolve())
-        
+
         # Register in database
         now = datetime.now(timezone.utc).isoformat()
-        
+
         conn = sqlite3.connect(self.db_path)
         try:
             # Use INSERT OR REPLACE for idempotent operation
@@ -289,16 +288,16 @@ class ImageStorage:
                 (image_id, file_path, collection, doc_hash, page_num, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (image_id, stored_path, collection, doc_hash, page_num, now))
-            
+
             conn.commit()
         except sqlite3.Error as e:
             raise RuntimeError(f"Failed to register image {image_id}: {e}")
         finally:
             conn.close()
-        
+
         return stored_path
-    
-    def get_image_path(self, image_id: str) -> Optional[str]:
+
+    def get_image_path(self, image_id: str) -> str | None:
         """Get filesystem path for an image by ID.
         
         Args:
@@ -323,7 +322,7 @@ class ImageStorage:
             return result[0] if result else None
         finally:
             conn.close()
-    
+
     def image_exists(self, image_id: str) -> bool:
         """Check if image exists in database.
         
@@ -334,12 +333,12 @@ class ImageStorage:
             True if image is registered, False otherwise.
         """
         return self.get_image_path(image_id) is not None
-    
+
     def list_images(
         self,
-        collection: Optional[str] = None,
-        doc_hash: Optional[str] = None
-    ) -> List[Dict[str, any]]:
+        collection: str | None = None,
+        doc_hash: str | None = None
+    ) -> list[dict[str, any]]:
         """List images with optional filtering.
         
         Args:
@@ -366,30 +365,30 @@ class ImageStorage:
         """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row  # Enable dict-like access
-        
+
         try:
             # Build query with optional filters
             query = "SELECT * FROM image_index WHERE 1=1"
             params = []
-            
+
             if collection is not None:
                 query += " AND collection = ?"
                 params.append(collection)
-            
+
             if doc_hash is not None:
                 query += " AND doc_hash = ?"
                 params.append(doc_hash)
-            
+
             query += " ORDER BY created_at ASC"
-            
+
             cursor = conn.execute(query, params)
             rows = cursor.fetchall()
-            
+
             # Convert rows to dictionaries
             return [dict(row) for row in rows]
         finally:
             conn.close()
-    
+
     def delete_image(self, image_id: str, remove_file: bool = True) -> bool:
         """Delete image from database and optionally from filesystem.
         
@@ -409,10 +408,10 @@ class ImageStorage:
         """
         # Get file path before deleting from database
         file_path = self.get_image_path(image_id)
-        
+
         if file_path is None:
             return False
-        
+
         # Delete from database
         conn = sqlite3.connect(self.db_path)
         try:
@@ -426,7 +425,7 @@ class ImageStorage:
             return False
         finally:
             conn.close()
-        
+
         # Optionally delete file
         if remove_file and deleted:
             try:
@@ -434,10 +433,10 @@ class ImageStorage:
             except Exception:
                 # Log but don't fail if file deletion fails
                 pass
-        
+
         return deleted
-    
-    def get_collection_stats(self, collection: str) -> Dict[str, any]:
+
+    def get_collection_stats(self, collection: str) -> dict[str, any]:
         """Get statistics for a collection.
         
         Args:
@@ -453,7 +452,7 @@ class ImageStorage:
             >>> print(f"Total images: {stats['total_images']}")
         """
         images = self.list_images(collection=collection)
-        
+
         total_size = 0
         for img in images:
             try:
@@ -462,7 +461,7 @@ class ImageStorage:
                     total_size += file_path.stat().st_size
             except Exception:
                 pass
-        
+
         return {
             "total_images": len(images),
             "total_size_bytes": total_size

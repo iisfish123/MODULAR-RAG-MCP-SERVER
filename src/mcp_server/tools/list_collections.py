@@ -15,13 +15,13 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from mcp import types
 
 if TYPE_CHECKING:
-    from src.mcp_server.protocol_handler import ProtocolHandler
     from src.core.settings import Settings
+    from src.mcp_server.protocol_handler import ProtocolHandler
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ Returns information about each collection including:
 Use this tool to discover available collections before querying.
 """
 
-TOOL_INPUT_SCHEMA: Dict[str, Any] = {
+TOOL_INPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "include_stats": {
@@ -61,12 +61,12 @@ class CollectionInfo:
         metadata: Collection metadata dictionary
     """
     name: str
-    count: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    count: int | None = None
+    metadata: dict[str, Any] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
-        result: Dict[str, Any] = {"name": self.name}
+        result: dict[str, Any] = {"name": self.name}
         if self.count is not None:
             result["count"] = self.count
         if self.metadata:
@@ -102,11 +102,11 @@ class ListCollectionsTool:
         >>> result = await tool.execute(include_stats=True)
         >>> print(result)
     """
-    
+
     def __init__(
         self,
-        settings: Optional[Settings] = None,
-        config: Optional[ListCollectionsConfig] = None,
+        settings: Settings | None = None,
+        config: ListCollectionsConfig | None = None,
     ) -> None:
         """Initialize ListCollectionsTool.
         
@@ -116,7 +116,7 @@ class ListCollectionsTool:
         """
         self._settings = settings
         self._config = config
-        
+
     @property
     def settings(self) -> Settings:
         """Get settings, loading if necessary."""
@@ -124,7 +124,7 @@ class ListCollectionsTool:
             from src.core.settings import load_settings
             self._settings = load_settings()
         return self._settings
-    
+
     @property
     def config(self) -> ListCollectionsConfig:
         """Get configuration, deriving from settings if necessary."""
@@ -137,12 +137,12 @@ class ListCollectionsTool:
                 )
             except AttributeError:
                 persist_dir = './data/db/chroma'
-            
+
             self._config = ListCollectionsConfig(
                 persist_directory=persist_dir
             )
         return self._config
-    
+
     def _get_chroma_client(self) -> Any:
         """Get or create ChromaDB client.
         
@@ -161,14 +161,14 @@ class ListCollectionsTool:
                 "chromadb package is required for list_collections. "
                 "Install it with: pip install chromadb"
             )
-        
+
         persist_path = Path(self.config.persist_directory).resolve()
-        
+
         if not persist_path.exists():
             logger.warning(f"ChromaDB directory does not exist: {persist_path}")
             # Return client anyway - it will just have no collections
             persist_path.mkdir(parents=True, exist_ok=True)
-        
+
         try:
             client = chromadb.PersistentClient(
                 path=str(persist_path),
@@ -182,11 +182,11 @@ class ListCollectionsTool:
             raise RuntimeError(
                 f"Failed to initialize ChromaDB client at '{persist_path}': {e}"
             ) from e
-    
+
     def list_collections(
         self,
         include_stats: bool = True
-    ) -> List[CollectionInfo]:
+    ) -> list[CollectionInfo]:
         """List all available collections.
         
         Args:
@@ -200,19 +200,19 @@ class ListCollectionsTool:
         except (ImportError, RuntimeError) as e:
             logger.error(f"Failed to get ChromaDB client: {e}")
             return []
-        
-        collections_info: List[CollectionInfo] = []
-        
+
+        collections_info: list[CollectionInfo] = []
+
         try:
             # Get all collections from ChromaDB
             collections = client.list_collections()
-            
+
             for collection in collections:
                 info = CollectionInfo(
                     name=collection.name,
                     metadata=collection.metadata
                 )
-                
+
                 if include_stats:
                     try:
                         info.count = collection.count()
@@ -221,19 +221,19 @@ class ListCollectionsTool:
                             f"Failed to get count for collection '{collection.name}': {e}"
                         )
                         info.count = None
-                
+
                 collections_info.append(info)
-                
+
         except Exception as e:
             logger.error(f"Failed to list collections: {e}")
             return []
-        
+
         logger.info(f"Found {len(collections_info)} collections")
         return collections_info
-    
+
     def format_response(
         self,
-        collections: List[CollectionInfo]
+        collections: list[CollectionInfo]
     ) -> str:
         """Format collections list as a readable string.
         
@@ -245,17 +245,17 @@ class ListCollectionsTool:
         """
         if not collections:
             return "No collections found in the knowledge base."
-        
+
         lines = [
             f"## Available Collections ({len(collections)} total)\n"
         ]
-        
+
         for i, coll in enumerate(collections, 1):
             line = f"{i}. **{coll.name}**"
-            
+
             if coll.count is not None:
                 line += f" - {coll.count} documents"
-            
+
             if coll.metadata:
                 # Filter out internal metadata
                 user_metadata = {
@@ -265,11 +265,11 @@ class ListCollectionsTool:
                 if user_metadata:
                     meta_str = ", ".join(f"{k}={v}" for k, v in user_metadata.items())
                     line += f" ({meta_str})"
-            
+
             lines.append(line)
-        
+
         return "\n".join(lines)
-    
+
     async def execute(
         self,
         include_stats: bool = True,
@@ -283,7 +283,7 @@ class ListCollectionsTool:
             CallToolResult with formatted collection list.
         """
         logger.info(f"Executing list_collections (include_stats={include_stats})")
-        
+
         try:
             # Run blocking ChromaDB I/O in a thread to avoid blocking
             # the async event loop / MCP stdio transport
@@ -291,7 +291,7 @@ class ListCollectionsTool:
                 self.list_collections, include_stats,
             )
             response_text = self.format_response(collections)
-            
+
             return types.CallToolResult(
                 content=[
                     types.TextContent(
@@ -301,7 +301,7 @@ class ListCollectionsTool:
                 ],
                 isError=False,
             )
-            
+
         except Exception as e:
             logger.exception("Error executing list_collections")
             return types.CallToolResult(
@@ -325,18 +325,18 @@ def register_tool(protocol_handler: ProtocolHandler) -> None:
         protocol_handler: ProtocolHandler instance to register with.
     """
     tool = ListCollectionsTool()
-    
+
     async def handler(
         include_stats: bool = True,
     ) -> types.CallToolResult:
         """Handler function for MCP tool calls."""
         return await tool.execute(include_stats=include_stats)
-    
+
     protocol_handler.register_tool(
         name=TOOL_NAME,
         description=TOOL_DESCRIPTION,
         input_schema=TOOL_INPUT_SCHEMA,
         handler=handler,
     )
-    
+
     logger.info(f"Registered MCP tool: {TOOL_NAME}")

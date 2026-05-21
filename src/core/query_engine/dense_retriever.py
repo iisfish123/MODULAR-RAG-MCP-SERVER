@@ -8,7 +8,7 @@ It forms the Dense route in the Hybrid Search Engine.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from src.core.types import RetrievalResult
 
@@ -55,12 +55,12 @@ class DenseRetriever:
         ... )
         >>> results = retriever.retrieve("What is RAG?", top_k=5)
     """
-    
+
     def __init__(
         self,
-        settings: Optional[Settings] = None,
-        embedding_client: Optional[BaseEmbedding] = None,
-        vector_store: Optional[BaseVectorStore] = None,
+        settings: Settings | None = None,
+        embedding_client: BaseEmbedding | None = None,
+        vector_store: BaseVectorStore | None = None,
         default_top_k: int = 10,
     ) -> None:
         """Initialize DenseRetriever with dependencies.
@@ -83,7 +83,7 @@ class DenseRetriever:
         """
         self.embedding_client = embedding_client
         self.vector_store = vector_store
-        
+
         # Extract default_top_k from settings if available
         self.default_top_k = default_top_k
         if settings is not None:
@@ -92,18 +92,18 @@ class DenseRetriever:
                 self.default_top_k = getattr(
                     retrieval_config, 'dense_top_k', default_top_k
                 )
-        
+
         logger.info(
             f"DenseRetriever initialized with default_top_k={self.default_top_k}"
         )
-    
+
     def retrieve(
         self,
         query: str,
-        top_k: Optional[int] = None,
-        filters: Optional[Dict[str, Any]] = None,
-        trace: Optional[Any] = None,
-    ) -> List[RetrievalResult]:
+        top_k: int | None = None,
+        filters: dict[str, Any] | None = None,
+        trace: Any | None = None,
+    ) -> list[RetrievalResult]:
         """Retrieve semantically similar chunks for a query.
         
         Args:
@@ -129,12 +129,12 @@ class DenseRetriever:
         # Validate inputs
         self._validate_query(query)
         self._validate_dependencies()
-        
+
         # Use default top_k if not specified
         effective_top_k = top_k if top_k is not None else self.default_top_k
-        
+
         logger.debug(f"Retrieving for query='{query[:50]}...', top_k={effective_top_k}")
-        
+
         # Step 1: Embed the query
         try:
             query_vectors = self.embedding_client.embed([query], trace=trace)
@@ -144,7 +144,7 @@ class DenseRetriever:
                 f"Failed to embed query: {e}. "
                 "Check embedding client configuration and connectivity."
             ) from e
-        
+
         # Step 2: Query the vector store
         try:
             raw_results = self.vector_store.query(
@@ -158,13 +158,13 @@ class DenseRetriever:
                 f"Failed to query vector store: {e}. "
                 "Check vector store configuration and data availability."
             ) from e
-        
+
         # Step 3: Transform to RetrievalResult objects
         results = self._transform_results(raw_results)
-        
+
         logger.debug(f"Retrieved {len(results)} results for query")
         return results
-    
+
     def _validate_query(self, query: str) -> None:
         """Validate the query string.
         
@@ -180,7 +180,7 @@ class DenseRetriever:
             )
         if not query.strip():
             raise ValueError("Query cannot be empty or whitespace-only")
-    
+
     def _validate_dependencies(self) -> None:
         """Validate that required dependencies are configured.
         
@@ -197,11 +197,11 @@ class DenseRetriever:
                 "DenseRetriever requires a vector_store. "
                 "Provide one during initialization or via setter."
             )
-    
+
     def _transform_results(
         self,
-        raw_results: List[Dict[str, Any]],
-    ) -> List[RetrievalResult]:
+        raw_results: list[dict[str, Any]],
+    ) -> list[RetrievalResult]:
         """Transform raw vector store results to RetrievalResult objects.
         
         Args:
@@ -227,14 +227,14 @@ class DenseRetriever:
                     "Skipping this result."
                 )
                 continue
-        
+
         return results
 
 
 def create_dense_retriever(
     settings: Settings,
-    embedding_client: Optional[BaseEmbedding] = None,
-    vector_store: Optional[BaseVectorStore] = None,
+    embedding_client: BaseEmbedding | None = None,
+    vector_store: BaseVectorStore | None = None,
 ) -> DenseRetriever:
     """Factory function to create a DenseRetriever with optional dependency injection.
     
@@ -259,11 +259,11 @@ def create_dense_retriever(
     if embedding_client is None:
         from src.libs.embedding.embedding_factory import EmbeddingFactory
         embedding_client = EmbeddingFactory.create(settings)
-    
+
     if vector_store is None:
         from src.libs.vector_store.vector_store_factory import VectorStoreFactory
         vector_store = VectorStoreFactory.create(settings)
-    
+
     return DenseRetriever(
         settings=settings,
         embedding_client=embedding_client,

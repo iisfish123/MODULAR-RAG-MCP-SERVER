@@ -8,7 +8,7 @@ nomic-embed-text, mxbai-embed-large, etc. on local hardware.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.libs.embedding.base_embedding import BaseEmbedding
 
@@ -39,16 +39,16 @@ class OllamaEmbedding(BaseEmbedding):
         >>> embedding = OllamaEmbedding(settings)
         >>> vectors = embedding.embed(["hello world", "test"])
     """
-    
+
     DEFAULT_BASE_URL = "http://localhost:11434"
     DEFAULT_TIMEOUT = 120.0  # Longer timeout for local inference
     DEFAULT_DIMENSION = 768  # Common dimension for local embedding models
-    
+
     def __init__(
         self,
         settings: Any,
-        base_url: Optional[str] = None,
-        timeout: Optional[float] = None,
+        base_url: str | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the Ollama Embedding provider.
@@ -63,29 +63,29 @@ class OllamaEmbedding(BaseEmbedding):
             ValueError: If required configuration is missing.
         """
         self.model = settings.embedding.model
-        
+
         # Base URL: explicit > env var > default
         self.base_url = (
-            base_url 
-            or os.environ.get("OLLAMA_BASE_URL") 
+            base_url
+            or os.environ.get("OLLAMA_BASE_URL")
             or self.DEFAULT_BASE_URL
         )
-        
+
         # Timeout: explicit > default
         self.timeout = timeout or self.DEFAULT_TIMEOUT
-        
+
         # Dimension: settings > default
         self.dimension = getattr(settings.embedding, 'dimensions', self.DEFAULT_DIMENSION)
-        
+
         # Store any additional kwargs for future use
         self._extra_config = kwargs
-    
+
     def embed(
         self,
-        texts: List[str],
-        trace: Optional[Any] = None,
+        texts: list[str],
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """Generate embeddings for a batch of texts using Ollama API.
         
         Args:
@@ -107,7 +107,7 @@ class OllamaEmbedding(BaseEmbedding):
         """
         # Validate input
         self.validate_texts(texts)
-        
+
         try:
             import httpx
         except ImportError as e:
@@ -115,35 +115,35 @@ class OllamaEmbedding(BaseEmbedding):
                 "httpx library is required for Ollama Embedding. "
                 "Install with: pip install httpx"
             ) from e
-        
+
         # Prepare API request
         url = f"{self.base_url}/api/embeddings"
-        
-        embeddings: List[List[float]] = []
-        
+
+        embeddings: list[list[float]] = []
+
         # Process each text individually (Ollama API expects single prompt)
         for text in texts:
             payload = {
                 "model": self.model,
                 "prompt": text,
             }
-            
+
             try:
                 with httpx.Client(timeout=self.timeout) as client:
                     response = client.post(url, json=payload)
                     response.raise_for_status()
-                    
+
                     result = response.json()
-                    
+
                     # Extract embedding from response
                     if "embedding" not in result:
                         raise OllamaEmbeddingError(
                             f"Unexpected response format from Ollama API. "
                             f"Expected 'embedding' field but got: {list(result.keys())}"
                         )
-                    
+
                     embeddings.append(result["embedding"])
-                    
+
             except httpx.HTTPStatusError as e:
                 # HTTP error (4xx, 5xx)
                 raise OllamaEmbeddingError(
@@ -172,9 +172,9 @@ class OllamaEmbedding(BaseEmbedding):
                 raise OllamaEmbeddingError(
                     f"Failed to parse Ollama API response: {str(e)}"
                 ) from e
-        
+
         return embeddings
-    
+
     def get_dimension(self) -> int:
         """Get the dimensionality of embeddings produced by this provider.
         

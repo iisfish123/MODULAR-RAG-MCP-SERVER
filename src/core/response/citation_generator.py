@@ -7,8 +7,8 @@ can be used by AI assistants for source attribution.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
+from typing import Any
 
 from src.core.types import RetrievalResult
 
@@ -31,10 +31,10 @@ class Citation:
     source: str
     score: float
     text_snippet: str
-    page: Optional[int] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict[str, Any]:
+    page: int | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {
             "index": self.index,
@@ -63,11 +63,11 @@ class CitationGenerator:
         >>> print(citations[0].index)  # 1
         >>> print(citations[0].source)  # "docs/guide.pdf"
     """
-    
+
     def __init__(
         self,
         snippet_max_length: int = 200,
-        include_metadata_fields: Optional[List[str]] = None,
+        include_metadata_fields: list[str] | None = None,
     ) -> None:
         """Initialize CitationGenerator.
         
@@ -80,8 +80,8 @@ class CitationGenerator:
         self.include_metadata_fields = include_metadata_fields or [
             "title", "section", "chunk_index", "doc_type"
         ]
-    
-    def generate(self, results: List[RetrievalResult]) -> List[Citation]:
+
+    def generate(self, results: list[RetrievalResult]) -> list[Citation]:
         """Generate citations from retrieval results.
         
         Args:
@@ -91,13 +91,13 @@ class CitationGenerator:
             List of Citation objects with 1-based indexing.
         """
         citations = []
-        
+
         for idx, result in enumerate(results, start=1):
             citation = self._create_citation(idx, result)
             citations.append(citation)
-        
+
         return citations
-    
+
     def _create_citation(self, index: int, result: RetrievalResult) -> Citation:
         """Create a Citation from a single RetrievalResult.
         
@@ -109,10 +109,10 @@ class CitationGenerator:
             Citation object with extracted information.
         """
         metadata = result.metadata or {}
-        
+
         # Extract source path
         source = metadata.get("source_path", "unknown")
-        
+
         # Extract page number (may be int or string)
         page = metadata.get("page") or metadata.get("page_num")
         if page is not None:
@@ -120,16 +120,16 @@ class CitationGenerator:
                 page = int(page)
             except (ValueError, TypeError):
                 page = None
-        
+
         # Generate text snippet
         text_snippet = self._generate_snippet(result.text)
-        
+
         # Extract selected metadata fields
         extra_metadata = {}
         for field_name in self.include_metadata_fields:
             if field_name in metadata and field_name not in ("source_path", "page", "page_num"):
                 extra_metadata[field_name] = metadata[field_name]
-        
+
         return Citation(
             index=index,
             chunk_id=result.chunk_id,
@@ -139,7 +139,7 @@ class CitationGenerator:
             page=page,
             metadata=extra_metadata,
         )
-    
+
     def _generate_snippet(self, text: str) -> str:
         """Generate a truncated snippet from text.
         
@@ -151,17 +151,17 @@ class CitationGenerator:
         """
         if not text:
             return ""
-        
+
         # Clean up whitespace
         cleaned = " ".join(text.split())
-        
+
         if len(cleaned) <= self.snippet_max_length:
             return cleaned
-        
+
         # Truncate and add ellipsis
         truncated = cleaned[:self.snippet_max_length].rsplit(" ", 1)[0]
         return truncated + "..."
-    
+
     def format_citation_marker(self, index: int) -> str:
         """Format a citation marker for inline use.
         

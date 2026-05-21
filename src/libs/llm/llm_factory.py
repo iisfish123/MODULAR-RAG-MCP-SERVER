@@ -33,10 +33,10 @@ def _register_vision_providers() -> None:
     except ImportError:
         # Provider not yet implemented, skip registration
         pass
-    
+
     try:
-        from src.libs.llm.openai_vision_llm import OpenAIVisionLLM
         from src.libs.llm.llm_factory import LLMFactory
+        from src.libs.llm.openai_vision_llm import OpenAIVisionLLM
         LLMFactory.register_vision_provider("openai", OpenAIVisionLLM)
     except ImportError:
         pass
@@ -55,13 +55,13 @@ class LLMFactory:
     - Fail-Fast: Raises clear errors for unknown providers.
     - Separation: Text and Vision LLM registries are separate.
     """
-    
+
     # Registry of supported text-only LLM providers (to be populated in B7.x tasks)
     _PROVIDERS: dict[str, type[BaseLLM]] = {}
-    
+
     # Registry of supported Vision LLM providers (to be populated in B9+ tasks)
     _VISION_PROVIDERS: dict[str, type[BaseVisionLLM]] = {}
-    
+
     @classmethod
     def register_provider(cls, name: str, provider_class: type[BaseLLM]) -> None:
         """Register a new LLM provider implementation.
@@ -81,7 +81,7 @@ class LLMFactory:
                 f"Provider class {provider_class.__name__} must inherit from BaseLLM"
             )
         cls._PROVIDERS[name.lower()] = provider_class
-    
+
     @classmethod
     def create(cls, settings: Settings, **override_kwargs: Any) -> BaseLLM:
         """Create an LLM instance based on configuration.
@@ -110,10 +110,10 @@ class LLMFactory:
                 "Missing required configuration: settings.llm.provider. "
                 "Please ensure 'llm.provider' is specified in settings.yaml"
             ) from e
-        
+
         # Look up provider class in registry
         provider_class = cls._PROVIDERS.get(provider_name)
-        
+
         if provider_class is None:
             available = ", ".join(sorted(cls._PROVIDERS.keys())) if cls._PROVIDERS else "none"
             raise ValueError(
@@ -121,7 +121,7 @@ class LLMFactory:
                 f"Available providers: {available}. "
                 f"Provider implementations will be added in tasks B7.1-B7.2."
             )
-        
+
         # Instantiate the provider
         # Provider classes should accept settings and optional kwargs
         try:
@@ -130,7 +130,7 @@ class LLMFactory:
             raise RuntimeError(
                 f"Failed to instantiate LLM provider '{provider_name}': {e}"
             ) from e
-    
+
     @classmethod
     def list_providers(cls) -> list[str]:
         """List all registered provider names.
@@ -139,7 +139,7 @@ class LLMFactory:
             Sorted list of available provider identifiers.
         """
         return sorted(cls._PROVIDERS.keys())
-    
+
     @classmethod
     def register_vision_provider(
         cls,
@@ -163,7 +163,7 @@ class LLMFactory:
                 f"Provider class {provider_class.__name__} must inherit from BaseVisionLLM"
             )
         cls._VISION_PROVIDERS[name.lower()] = provider_class
-    
+
     @classmethod
     def create_vision_llm(
         cls,
@@ -209,10 +209,10 @@ class LLMFactory:
                 "Missing required configuration: settings.vision_llm.provider or settings.llm.provider. "
                 "Please ensure 'vision_llm.provider' or 'llm.provider' is specified in settings.yaml"
             ) from e
-        
+
         # Look up provider class in vision registry
         provider_class = cls._VISION_PROVIDERS.get(provider_name)
-        
+
         if provider_class is None:
             available = ", ".join(sorted(cls._VISION_PROVIDERS.keys())) if cls._VISION_PROVIDERS else "none"
             raise ValueError(
@@ -220,7 +220,7 @@ class LLMFactory:
                 f"Available Vision LLM providers: {available}. "
                 f"Vision LLM implementations will be added in tasks B9+."
             )
-        
+
         # Instantiate the provider
         try:
             return provider_class(settings=settings, **override_kwargs)
@@ -228,7 +228,7 @@ class LLMFactory:
             raise RuntimeError(
                 f"Failed to instantiate Vision LLM provider '{provider_name}': {e}"
             ) from e
-    
+
     @classmethod
     def list_vision_providers(cls) -> list[str]:
         """List all registered Vision LLM provider names.

@@ -8,7 +8,7 @@ through configuration-driven instantiation.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from typing import Any
 
 
 class BaseEmbedding(ABC):
@@ -24,14 +24,14 @@ class BaseEmbedding(ABC):
     - Config-Driven: Instances are created via factory based on settings.
     - Batch-First: Designed for batch processing to maximize efficiency.
     """
-    
+
     @abstractmethod
     def embed(
         self,
-        texts: List[str],
-        trace: Optional[Any] = None,
+        texts: list[str],
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """Generate embeddings for a batch of texts.
         
         Args:
@@ -54,8 +54,8 @@ class BaseEmbedding(ABC):
             >>> len(embeddings[0])  # dimension (e.g., 1536 for OpenAI)
         """
         pass
-    
-    def validate_texts(self, texts: List[str]) -> None:
+
+    def validate_texts(self, texts: list[str]) -> None:
         """Validate input text list.
         
         Args:
@@ -66,7 +66,7 @@ class BaseEmbedding(ABC):
         """
         if not texts:
             raise ValueError("Texts list cannot be empty")
-        
+
         for i, text in enumerate(texts):
             if not isinstance(text, str):
                 raise ValueError(
@@ -77,7 +77,7 @@ class BaseEmbedding(ABC):
                     f"Text at index {i} is empty or whitespace-only. "
                     "Embedding providers typically reject empty strings."
                 )
-    
+
     def get_dimension(self) -> int:
         """Get the dimensionality of embeddings produced by this provider.
         

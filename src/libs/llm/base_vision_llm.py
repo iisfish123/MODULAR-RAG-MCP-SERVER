@@ -14,7 +14,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 from src.libs.llm.base_llm import ChatResponse, Message
 
@@ -34,11 +34,11 @@ class ImageInput:
         base64: Base64-encoded image string (if already encoded).
         mime_type: MIME type of the image (e.g., 'image/png', 'image/jpeg').
     """
-    path: Optional[Union[str, Path]] = None
-    data: Optional[bytes] = None
-    base64: Optional[str] = None
+    path: str | Path | None = None
+    data: bytes | None = None
+    base64: str | None = None
     mime_type: str = "image/png"
-    
+
     def __post_init__(self) -> None:
         """Validate that exactly one input format is provided."""
         provided_inputs = sum([
@@ -71,14 +71,14 @@ class BaseVisionLLM(ABC):
     - Extension Point: Image preprocessing (compression, format conversion) can be
       added in subclasses without changing the base interface.
     """
-    
+
     @abstractmethod
     def chat_with_image(
         self,
         text: str,
         image: ImageInput,
-        messages: Optional[list[Message]] = None,
-        trace: Optional[Any] = None,
+        messages: list[Message] | None = None,
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> ChatResponse:
         """Generate a response based on text prompt and image input.
@@ -111,7 +111,7 @@ class BaseVisionLLM(ABC):
             "This diagram shows a system architecture with..."
         """
         pass
-    
+
     def validate_text(self, text: str) -> None:
         """Validate text prompt.
         
@@ -125,7 +125,7 @@ class BaseVisionLLM(ABC):
             raise ValueError(f"Text must be a string, got {type(text).__name__}")
         if not text or not text.strip():
             raise ValueError("Text prompt cannot be empty")
-    
+
     def validate_image(self, image: ImageInput) -> None:
         """Validate image input.
         
@@ -139,11 +139,11 @@ class BaseVisionLLM(ABC):
             raise ValueError(
                 f"Image must be an ImageInput instance, got {type(image).__name__}"
             )
-    
+
     def preprocess_image(
         self,
         image: ImageInput,
-        max_size: Optional[tuple[int, int]] = None,
+        max_size: tuple[int, int] | None = None,
     ) -> ImageInput:
         """Preprocess image before sending to Vision LLM.
         

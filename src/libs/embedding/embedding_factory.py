@@ -27,10 +27,10 @@ class EmbeddingFactory:
     - Config-Driven: Provider selection based on settings.yaml.
     - Fail-Fast: Raises clear errors for unknown providers.
     """
-    
+
     # Registry of supported providers
     _PROVIDERS: dict[str, type[BaseEmbedding]] = {}
-    
+
     @classmethod
     def register_provider(cls, name: str, provider_class: type[BaseEmbedding]) -> None:
         """Register a new Embedding provider implementation.
@@ -50,7 +50,7 @@ class EmbeddingFactory:
                 f"Provider class {provider_class.__name__} must inherit from BaseEmbedding"
             )
         cls._PROVIDERS[name.lower()] = provider_class
-    
+
     @classmethod
     def create(cls, settings: Settings, **override_kwargs: Any) -> BaseEmbedding:
         """Create an Embedding instance based on configuration.
@@ -79,17 +79,17 @@ class EmbeddingFactory:
                 "Missing required configuration: settings.embedding.provider. "
                 "Please ensure 'embedding.provider' is specified in settings.yaml"
             ) from e
-        
+
         # Look up provider class in registry
         provider_class = cls._PROVIDERS.get(provider_name)
-        
+
         if provider_class is None:
             available = ", ".join(sorted(cls._PROVIDERS.keys())) if cls._PROVIDERS else "none"
             raise ValueError(
                 f"Unsupported Embedding provider: '{provider_name}'. "
                 f"Available providers: {available}"
             )
-        
+
         # Instantiate the provider
         # Provider classes should accept settings and optional kwargs
         try:
@@ -98,7 +98,7 @@ class EmbeddingFactory:
             raise RuntimeError(
                 f"Failed to instantiate Embedding provider '{provider_name}': {e}"
             ) from e
-    
+
     @classmethod
     def list_providers(cls) -> list[str]:
         """List all registered provider names.
@@ -117,13 +117,13 @@ def _register_builtin_providers() -> None:
         EmbeddingFactory.register_provider("openai", OpenAIEmbedding)
     except ImportError:
         pass  # OpenAI provider not available
-    
+
     try:
         from src.libs.embedding.azure_embedding import AzureEmbedding
         EmbeddingFactory.register_provider("azure", AzureEmbedding)
     except ImportError:
         pass  # Azure provider not available
-    
+
     try:
         from src.libs.embedding.ollama_embedding import OllamaEmbedding
         EmbeddingFactory.register_provider("ollama", OllamaEmbedding)

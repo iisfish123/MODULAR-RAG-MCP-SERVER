@@ -8,7 +8,7 @@ enabling seamless switching between different splitting strategies
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from typing import Any
 
 
 class BaseSplitter(ABC):
@@ -23,14 +23,14 @@ class BaseSplitter(ABC):
     - Observable: Accepts optional TraceContext for observability integration.
     - Config-Driven: Instances are created via factory based on settings.
     """
-    
+
     @abstractmethod
     def split_text(
         self,
         text: str,
-        trace: Optional[Any] = None,
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[str]:
+    ) -> list[str]:
         """Split input text into a list of chunks.
         
         Args:
@@ -46,7 +46,7 @@ class BaseSplitter(ABC):
             RuntimeError: If the splitter fails unexpectedly.
         """
         pass
-    
+
     def validate_text(self, text: str) -> None:
         """Validate input text.
         
@@ -60,8 +60,8 @@ class BaseSplitter(ABC):
             raise ValueError(f"Input text must be a string, got {type(text).__name__}")
         if not text.strip():
             raise ValueError("Input text cannot be empty or whitespace-only")
-    
-    def validate_chunks(self, chunks: List[str]) -> None:
+
+    def validate_chunks(self, chunks: list[str]) -> None:
         """Validate output chunks.
         
         Args:

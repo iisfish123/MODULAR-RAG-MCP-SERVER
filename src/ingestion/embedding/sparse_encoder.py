@@ -10,9 +10,9 @@ Design Principles:
 - Clear Contracts: Well-defined output structure for downstream BM25Indexer
 """
 
-from typing import List, Dict, Optional, Any
-from collections import Counter
 import re
+from collections import Counter
+from typing import Any
 
 import jieba
 
@@ -48,7 +48,7 @@ class SparseEncoder:
         >>> stats[0]["term_frequencies"]["hello"]  # 2
         >>> stats[0]["doc_length"]  # 3
     """
-    
+
     def __init__(
         self,
         min_term_length: int = 2,
@@ -65,15 +65,15 @@ class SparseEncoder:
         """
         if min_term_length < 1:
             raise ValueError(f"min_term_length must be >= 1, got {min_term_length}")
-        
+
         self.min_term_length = min_term_length
         self.lowercase = lowercase
-    
+
     def encode(
         self,
-        chunks: List[Chunk],
-        trace: Optional[Any] = None,
-    ) -> List[Dict[str, Any]]:
+        chunks: list[Chunk],
+        trace: Any | None = None,
+    ) -> list[dict[str, Any]]:
         """Encode chunks into BM25 term statistics.
         
         For each chunk, extracts:
@@ -105,20 +105,20 @@ class SparseEncoder:
         """
         if not chunks:
             raise ValueError("Cannot encode empty chunks list")
-        
+
         results = []
-        
+
         for i, chunk in enumerate(chunks):
             # Validate chunk text
             if not chunk.text or not chunk.text.strip():
                 raise ValueError(
                     f"Chunk at index {i} (id={chunk.id}) has empty or whitespace-only text"
                 )
-            
+
             # Tokenize and count terms
             terms = self._tokenize(chunk.text)
             term_frequencies = Counter(terms)
-            
+
             # Build statistics dict
             stat_dict = {
                 "chunk_id": chunk.id,
@@ -126,12 +126,12 @@ class SparseEncoder:
                 "doc_length": len(terms),
                 "unique_terms": len(term_frequencies),
             }
-            
+
             results.append(stat_dict)
-        
+
         return results
-    
-    def _tokenize(self, text: str) -> List[str]:
+
+    def _tokenize(self, text: str) -> list[str]:
         """Tokenize text into terms.
         
         Uses jieba for Chinese text segmentation and regex for English.
@@ -144,7 +144,7 @@ class SparseEncoder:
         Returns:
             List of valid terms
         """
-        tokens: List[str] = []
+        tokens: list[str] = []
 
         # Use jieba to segment the text (handles both Chinese and English)
         raw_tokens = jieba.lcut(text)
@@ -158,20 +158,20 @@ class SparseEncoder:
             if re.fullmatch(r'[\s\W]+', token, re.UNICODE):
                 continue
             tokens.append(token)
-        
+
         # Apply lowercase if configured
         if self.lowercase:
             tokens = [t.lower() for t in tokens]
-        
+
         # Filter by minimum length
         terms = [t for t in tokens if len(t) >= self.min_term_length]
-        
+
         return terms
-    
+
     def get_corpus_stats(
         self,
-        encoded_chunks: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        encoded_chunks: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Calculate corpus-level statistics from encoded chunks.
         
         Utility method for BM25Indexer to compute:
@@ -196,18 +196,18 @@ class SparseEncoder:
                 "avg_doc_length": 0.0,
                 "document_frequency": {}
             }
-        
+
         num_docs = len(encoded_chunks)
         total_length = sum(chunk["doc_length"] for chunk in encoded_chunks)
         avg_doc_length = total_length / num_docs if num_docs > 0 else 0.0
-        
+
         # Calculate document frequency (DF) for each term
-        doc_freq: Dict[str, int] = {}
+        doc_freq: dict[str, int] = {}
         for chunk_stats in encoded_chunks:
             # Each unique term in this chunk contributes 1 to DF
             for term in chunk_stats["term_frequencies"].keys():
                 doc_freq[term] = doc_freq.get(term, 0) + 1
-        
+
         return {
             "num_docs": num_docs,
             "avg_doc_length": avg_doc_length,

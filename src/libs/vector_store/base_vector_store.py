@@ -8,7 +8,7 @@ through configuration-driven instantiation.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class BaseVectorStore(ABC):
@@ -24,12 +24,12 @@ class BaseVectorStore(ABC):
     - Config-Driven: Instances are created via factory based on settings.
     - Idempotent: upsert() operations should be safely repeatable.
     """
-    
+
     @abstractmethod
     def upsert(
         self,
-        records: List[Dict[str, Any]],
-        trace: Optional[Any] = None,
+        records: list[dict[str, Any]],
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Insert or update records in the vector store.
@@ -62,16 +62,16 @@ class BaseVectorStore(ABC):
             - Implementations should handle batch operations efficiently.
         """
         pass
-    
+
     @abstractmethod
     def query(
         self,
-        vector: List[float],
+        vector: list[float],
         top_k: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
-        trace: Optional[Any] = None,
+        filters: dict[str, Any] | None = None,
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Query the vector store for similar vectors.
         
         Args:
@@ -100,8 +100,8 @@ class BaseVectorStore(ABC):
             ...     print(f"ID: {result['id']}, Score: {result['score']}")
         """
         pass
-    
-    def validate_records(self, records: List[Dict[str, Any]]) -> None:
+
+    def validate_records(self, records: list[dict[str, Any]]) -> None:
         """Validate records before upsert.
         
         Args:
@@ -112,19 +112,19 @@ class BaseVectorStore(ABC):
         """
         if not records:
             raise ValueError("Records list cannot be empty")
-        
+
         for i, record in enumerate(records):
             if not isinstance(record, dict):
                 raise ValueError(
                     f"Record at index {i} is not a dict (type: {type(record).__name__})"
                 )
-            
+
             # Validate required fields
             if 'id' not in record:
                 raise ValueError(f"Record at index {i} is missing required field: 'id'")
             if 'vector' not in record:
                 raise ValueError(f"Record at index {i} is missing required field: 'vector'")
-            
+
             # Validate vector format
             vector = record['vector']
             if not isinstance(vector, (list, tuple)):
@@ -132,11 +132,11 @@ class BaseVectorStore(ABC):
                     f"Record at index {i} has invalid vector type: {type(vector).__name__}. "
                     "Expected list or tuple of floats."
                 )
-            
+
             if not vector:
                 raise ValueError(f"Record at index {i} has empty vector")
-    
-    def validate_query_vector(self, vector: List[float], top_k: int) -> None:
+
+    def validate_query_vector(self, vector: list[float], top_k: int) -> None:
         """Validate query parameters.
         
         Args:
@@ -150,17 +150,17 @@ class BaseVectorStore(ABC):
             raise ValueError(
                 f"Query vector must be a list or tuple, got {type(vector).__name__}"
             )
-        
+
         if not vector:
             raise ValueError("Query vector cannot be empty")
-        
+
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"top_k must be a positive integer, got {top_k}")
-    
+
     def delete(
         self,
-        ids: List[str],
-        trace: Optional[Any] = None,
+        ids: list[str],
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Delete records from the vector store by IDs.
@@ -183,11 +183,11 @@ class BaseVectorStore(ABC):
             f"{self.__class__.__name__} does not implement delete() method. "
             "This operation is optional and provider-dependent."
         )
-    
+
     def clear(
         self,
-        collection_name: Optional[str] = None,
-        trace: Optional[Any] = None,
+        collection_name: str | None = None,
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Clear all records from the vector store or a specific collection.
@@ -208,13 +208,13 @@ class BaseVectorStore(ABC):
             f"{self.__class__.__name__} does not implement clear() method. "
             "This operation is optional and primarily for testing."
         )
-    
+
     def get_by_ids(
         self,
-        ids: List[str],
-        trace: Optional[Any] = None,
+        ids: list[str],
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve records by their IDs.
         
         This method is used by SparseRetriever to fetch text and metadata

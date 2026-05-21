@@ -8,7 +8,7 @@ LLM-based) through configuration-driven instantiation.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class BaseReranker(ABC):
@@ -24,15 +24,15 @@ class BaseReranker(ABC):
     - Config-Driven: Instances are created via factory based on settings.
     - Fallback: Implementations should support safe degradation to original order.
     """
-    
+
     @abstractmethod
     def rerank(
         self,
         query: str,
-        candidates: List[Dict[str, Any]],
-        trace: Optional[Any] = None,
+        candidates: list[dict[str, Any]],
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Rerank candidate chunks for a given query.
         
         Args:
@@ -53,7 +53,7 @@ class BaseReranker(ABC):
             RuntimeError: If the reranker fails unexpectedly.
         """
         pass
-    
+
     def validate_query(self, query: str) -> None:
         """Validate the query string.
         
@@ -67,8 +67,8 @@ class BaseReranker(ABC):
             raise ValueError(f"Query must be a string, got {type(query).__name__}")
         if not query.strip():
             raise ValueError("Query cannot be empty or whitespace-only")
-    
-    def validate_candidates(self, candidates: List[Dict[str, Any]]) -> None:
+
+    def validate_candidates(self, candidates: list[dict[str, Any]]) -> None:
         """Validate candidate list structure.
         
         Args:
@@ -94,18 +94,18 @@ class NoneReranker(BaseReranker):
     This implementation is used when reranking is disabled or the provider is set
     to 'none'. It validates inputs and returns candidates unchanged.
     """
-    
+
     def __init__(self, settings: Any = None, **kwargs: Any) -> None:
         self.settings = settings
         self.kwargs = kwargs
-    
+
     def rerank(
         self,
         query: str,
-        candidates: List[Dict[str, Any]],
-        trace: Optional[Any] = None,
+        candidates: list[dict[str, Any]],
+        trace: Any | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return candidates in original order.
         
         Args:

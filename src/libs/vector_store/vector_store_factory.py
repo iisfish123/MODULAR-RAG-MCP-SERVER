@@ -27,10 +27,10 @@ class VectorStoreFactory:
     - Config-Driven: Provider selection based on settings.yaml.
     - Fail-Fast: Raises clear errors for unknown providers.
     """
-    
+
     # Registry of supported providers (to be populated in B7.x tasks)
     _PROVIDERS: dict[str, type[BaseVectorStore]] = {}
-    
+
     @classmethod
     def register_provider(cls, name: str, provider_class: type[BaseVectorStore]) -> None:
         """Register a new VectorStore provider implementation.
@@ -50,7 +50,7 @@ class VectorStoreFactory:
                 f"Provider class {provider_class.__name__} must inherit from BaseVectorStore"
             )
         cls._PROVIDERS[name.lower()] = provider_class
-    
+
     @classmethod
     def create(cls, settings: Settings, **override_kwargs: Any) -> BaseVectorStore:
         """Create a VectorStore instance based on configuration.
@@ -79,10 +79,10 @@ class VectorStoreFactory:
                 "Missing required configuration: settings.vector_store.provider. "
                 "Please ensure 'vector_store.provider' is specified in settings.yaml"
             ) from e
-        
+
         # Look up provider class in registry
         provider_class = cls._PROVIDERS.get(provider_name)
-        
+
         if provider_class is None:
             available = ", ".join(sorted(cls._PROVIDERS.keys())) if cls._PROVIDERS else "none"
             raise ValueError(
@@ -90,7 +90,7 @@ class VectorStoreFactory:
                 f"Available providers: {available}. "
                 f"Provider implementations will be added in task B7.6 and beyond."
             )
-        
+
         # Instantiate the provider
         # Provider classes should accept settings and optional kwargs
         try:
@@ -99,7 +99,7 @@ class VectorStoreFactory:
             raise RuntimeError(
                 f"Failed to instantiate VectorStore provider '{provider_name}': {e}"
             ) from e
-    
+
     @classmethod
     def list_providers(cls) -> list[str]:
         """List all registered provider names.

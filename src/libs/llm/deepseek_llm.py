@@ -8,7 +8,7 @@ its own endpoint and authentication.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.libs.llm.base_llm import BaseLLM, ChatResponse, Message
 
@@ -36,14 +36,14 @@ class DeepSeekLLM(BaseLLM):
         >>> llm = DeepSeekLLM(settings)
         >>> response = llm.chat([Message(role='user', content='Hello')])
     """
-    
+
     DEFAULT_BASE_URL = "https://api.deepseek.com"
-    
+
     def __init__(
         self,
         settings: Any,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the DeepSeek LLM provider.
@@ -60,7 +60,7 @@ class DeepSeekLLM(BaseLLM):
         self.model = settings.llm.model
         self.default_temperature = settings.llm.temperature
         self.default_max_tokens = settings.llm.max_tokens
-        
+
         # API key: explicit > env var
         self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY")
         if not self.api_key:
@@ -68,17 +68,17 @@ class DeepSeekLLM(BaseLLM):
                 "DeepSeek API key not provided. Set DEEPSEEK_API_KEY environment variable "
                 "or pass api_key parameter."
             )
-        
+
         # Base URL: explicit > default
         self.base_url = base_url or self.DEFAULT_BASE_URL
-        
+
         # Store any additional kwargs for future use
         self._extra_config = kwargs
-    
+
     def chat(
         self,
-        messages: List[Message],
-        trace: Optional[Any] = None,
+        messages: list[Message],
+        trace: Any | None = None,
         **kwargs: Any,
     ) -> ChatResponse:
         """Generate a chat completion using DeepSeek API.
@@ -97,15 +97,15 @@ class DeepSeekLLM(BaseLLM):
         """
         # Validate input
         self.validate_messages(messages)
-        
+
         # Prepare request parameters
         temperature = kwargs.get("temperature", self.default_temperature)
         max_tokens = kwargs.get("max_tokens", self.default_max_tokens)
         model = kwargs.get("model", self.model)
-        
+
         # Convert messages to API format
         api_messages = [{"role": m.role, "content": m.content} for m in messages]
-        
+
         # Make API call
         try:
             response_data = self._call_api(
@@ -114,11 +114,11 @@ class DeepSeekLLM(BaseLLM):
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            
+
             # Parse response
             content = response_data["choices"][0]["message"]["content"]
             usage = response_data.get("usage")
-            
+
             return ChatResponse(
                 content=content,
                 model=response_data.get("model", model),
@@ -135,14 +135,14 @@ class DeepSeekLLM(BaseLLM):
             raise DeepSeekLLMError(
                 f"[DeepSeek] API call failed: {type(e).__name__}: {e}"
             ) from e
-    
+
     def _call_api(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         model: str,
         temperature: float,
         max_tokens: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Make the actual API call to DeepSeek.
         
         This method is separated to allow easy mocking in tests.
@@ -160,7 +160,7 @@ class DeepSeekLLM(BaseLLM):
             DeepSeekLLMError: If the API call fails.
         """
         import httpx
-        
+
         url = f"{self.base_url.rstrip('/')}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -172,27 +172,27 @@ class DeepSeekLLM(BaseLLM):
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        
+
         try:
             with httpx.Client(timeout=60.0) as client:
                 response = client.post(url, json=payload, headers=headers)
-                
+
                 if response.status_code != 200:
                     error_detail = self._parse_error_response(response)
                     raise DeepSeekLLMError(
                         f"[DeepSeek] API error (HTTP {response.status_code}): {error_detail}"
                     )
-                
+
                 return response.json()
         except httpx.TimeoutException as e:
             raise DeepSeekLLMError(
-                f"[DeepSeek] Request timed out after 60 seconds"
+                "[DeepSeek] Request timed out after 60 seconds"
             ) from e
         except httpx.RequestError as e:
             raise DeepSeekLLMError(
                 f"[DeepSeek] Connection failed: {type(e).__name__}: {e}"
             ) from e
-    
+
     def _parse_error_response(self, response: Any) -> str:
         """Parse error details from API response.
         

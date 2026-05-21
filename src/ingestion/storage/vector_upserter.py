@@ -15,10 +15,10 @@ Design Principles:
 """
 
 import hashlib
-from typing import List, Dict, Any, Optional
+from typing import Any
 
-from src.core.types import Chunk
 from src.core.settings import Settings
+from src.core.types import Chunk
 from src.libs.vector_store.vector_store_factory import VectorStoreFactory
 
 
@@ -53,8 +53,8 @@ class VectorUpserter:
         >>> upserter.upsert(chunks, vectors)
         >>> # Chunks written with stable IDs like: "a1b2c3d4_0000_e5f6g7h8"
     """
-    
-    def __init__(self, settings: Settings, collection_name: Optional[str] = None):
+
+    def __init__(self, settings: Settings, collection_name: str | None = None):
         """Initialize VectorUpserter with configured vector store.
         
         Args:
@@ -69,13 +69,13 @@ class VectorUpserter:
         if collection_name:
             kwargs['collection_name'] = collection_name
         self.vector_store = VectorStoreFactory.create(settings, **kwargs)
-    
+
     def upsert(
         self,
-        chunks: List[Chunk],
-        vectors: List[List[float]],
-        trace: Optional[Any] = None,
-    ) -> List[str]:
+        chunks: list[Chunk],
+        vectors: list[list[float]],
+        trace: Any | None = None,
+    ) -> list[str]:
         """Upsert chunks with their vectors to vector store.
         
         Args:
@@ -102,19 +102,19 @@ class VectorUpserter:
             raise ValueError(
                 f"Chunk count ({len(chunks)}) must match vector count ({len(vectors)})"
             )
-        
+
         if not chunks:
             raise ValueError("Cannot upsert empty chunks list")
-        
+
         # Generate stable chunk IDs and build records
         records = []
         chunk_ids = []
-        
+
         for chunk, vector in zip(chunks, vectors):
             # Generate deterministic chunk ID
             chunk_id = self._generate_chunk_id(chunk)
             chunk_ids.append(chunk_id)
-            
+
             # Build storage record
             record = {
                 "id": chunk_id,
@@ -126,7 +126,7 @@ class VectorUpserter:
                 },
             }
             records.append(record)
-        
+
         # Perform idempotent upsert
         try:
             self.vector_store.upsert(records, trace=trace)
@@ -134,9 +134,9 @@ class VectorUpserter:
             raise RuntimeError(
                 f"Vector store upsert failed: {str(e)}"
             ) from e
-        
+
         return chunk_ids
-    
+
     def _generate_chunk_id(self, chunk: Chunk) -> str:
         """Generate deterministic chunk ID from content.
         
@@ -154,24 +154,24 @@ class VectorUpserter:
             raise ValueError("Chunk metadata must contain 'source_path'")
         if "chunk_index" not in chunk.metadata:
             raise ValueError("Chunk metadata must contain 'chunk_index'")
-        
+
         source_path = chunk.metadata["source_path"]
         chunk_index = chunk.metadata["chunk_index"]
-        
+
         # Compute stable hashes
         source_hash = hashlib.sha256(source_path.encode("utf-8")).hexdigest()[:8]
         content_hash = hashlib.sha256(chunk.text.encode("utf-8")).hexdigest()[:8]
-        
+
         # Format: {source_hash}_{index:04d}_{content_hash}
         chunk_id = f"{source_hash}_{chunk_index:04d}_{content_hash}"
-        
+
         return chunk_id
-    
+
     def upsert_batch(
         self,
-        batches: List[tuple[List[Chunk], List[List[float]]]],
-        trace: Optional[Any] = None,
-    ) -> List[str]:
+        batches: list[tuple[list[Chunk], list[list[float]]]],
+        trace: Any | None = None,
+    ) -> list[str]:
         """Upsert multiple batches of chunks and vectors.
         
         This is a convenience method for processing outputs from BatchProcessor.
@@ -194,10 +194,10 @@ class VectorUpserter:
         # Flatten all batches
         all_chunks = []
         all_vectors = []
-        
+
         for chunks, vectors in batches:
             all_chunks.extend(chunks)
             all_vectors.extend(vectors)
-        
+
         # Single upsert operation
         return self.upsert(all_chunks, all_vectors, trace=trace)
